@@ -118,6 +118,24 @@ class GLPI:
             # print("\n" * os.get_terminal_size().lines) # para limpar a tela e deixar o retorno na ultima linha
             # print("\x1b[2J\x1b[1;1H")  # para limpar a tela e deixar o retorno na primeira linha
             BotLog.imprimirLog(hora+":"+minuto+":"+segundo)
+    def limparDescricao(self,descricao):
+        x = descricao.find('&#60;')
+        if x == -1:
+            return descricao
+        parte1 = descricao[:x]
+        parte2 = descricao[x:]
+        descricao = parte1+' '+parte2
+        x+=1
+        if x > 0:
+            y = descricao.find('&#62;')+5
+            parte1 = descricao[:y]
+            parte2 = descricao[y:]
+            descricao = parte1+' '+parte2
+            y+=1
+            if y>x:
+                descricao_limpa = descricao[:x]+descricao[y:]
+                descricao_limpa = bot.limparDescricao(descricao_limpa)
+                return descricao_limpa
     def novoChamado(self):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO NOVO CHAMADO ###########################################################")
         
@@ -140,6 +158,21 @@ class GLPI:
                 INNER JOIN glpi_slas sa ON sa.id = t.slas_id_tto
                 INNER JOIN glpi_slas ss ON ss.id = t.slas_id_ttr
                 WHERE t.status = 1 and t.id > {id} ORDER BY t.id"""
+        sql_glpi = ''
+        sql_glpi = f"""
+                SELECT t.id Numero, u1.name Solicitante, e.name Entidade, c.name Categoria, t.name Titulo, t.content Descricao
+                ,t.date_creation Data_Abertura,sa.name TA, t.time_to_own Data_TA , ss.name TS, t.time_to_resolve Data_TS
+                ,t.status
+                FROM glpi_tickets t
+                LEFT JOIN glpi_entities e ON e.id = t.entities_id
+                left JOIN glpi_tickets_users tu1 ON tu1.tickets_id=t.id AND tu1.type = 1 -- para usuário atribuido
+                left JOIN glpi_users u1 ON u1.id=tu1.users_id                            -- para usuário atribuido
+                LEFT JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
+                LEFT JOIN glpi_slas sa ON sa.id = t.slas_id_tto
+                LEFT JOIN glpi_slas ss ON ss.id = t.slas_id_ttr
+                WHERE t.status = 1 and t.id > {id} ORDER BY t.id
+                    """
+        # self.id_telegram = '452405307'
                 
         conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
         dfchamados= pd.read_sql_query(sql_glpi,conMySQLGLPI)
@@ -150,8 +183,13 @@ class GLPI:
             solicitante = dfchamados['Solicitante'].iloc[x]
             entidade = dfchamados['Entidade'].iloc[x]
             categoria = dfchamados['Categoria'].iloc[x]
+            categoria = categoria.replace('&#62;','>')
             titulo = dfchamados['Titulo'].iloc[x]
             descricao = dfchamados['Descricao'].iloc[x]
+            descricao_limpa = bot.limparDescricao(descricao)
+            descricao_limpa = descricao_limpa.replace('&#60;/p&#62;',' ')
+            descricao_limpa = descricao_limpa.replace('&#60;p&#62;',' ')
+            descricao_limpa = descricao_limpa.replace('&#60;br&#62;',' ')
             data_abertura = dfchamados['Data_Abertura'].iloc[x].strftime('%d-%m-%Y %H:%M:%S')
             ta = dfchamados['TA'].iloc[x]
             ta = ta.replace("TA","Tempo para atendimento")
@@ -166,7 +204,7 @@ class GLPI:
             🏢 {entidade}
             🏷 {categoria}
             ✏️ {titulo}
-            🗒 {descricao}
+            🗒 {descricao_limpa}
             📅 {data_abertura}
             ⏱ {ta}
             ⏱ {data_ta}
