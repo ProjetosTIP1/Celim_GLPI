@@ -75,6 +75,10 @@ class GLPI:
             self.caminho_excel=arquivo.read()
         self.caminho_excel=str(self.caminho_excel)
 
+        with open("Config\sistema.txt", "r",) as arquivo:
+            self.sistema=arquivo.read()
+        self.sistema=str(self.sistema)
+
         self.chamadosvencendoavisado = [] # lista com chamados vencendo que ja foi avisado
         self.limiteaguardarelemento = 0 # contador limitar as tentativas de procurar um elemento html
         self.tempo = 300 # tempo em segundos entre cada verificação
@@ -763,22 +767,29 @@ class GLPI:
         self.driver.quit()
         self.conterro = 0
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
-    def chamadosVencendo(Self):
+    def chamadosVencendo(self):
         sql_glpi = f"""
-        SELECT t.id Numero, u.name Solicitante, e.name Entidade, c.name Categoria, t.name Titulo, SUBSTRING(t.content,12,LOCATE('&#60;/p&#62;',SUBSTRING(t.content,12,1000))-1) Descricao
+        SELECT 
+                t.id Numero, 
+                u.name Solicitante, 
+                e.name Entidade, 
+                c.name Categoria, 
+                t.name Titulo, 
+                SUBSTRING(t.content,12,LOCATE('&#60;/p&#62;',SUBSTRING(t.content,12,1000))-1) Descricao
         ,t.date_creation Data_Abertura,sa.name TA, t.time_to_own Data_TA , ss.name TS, t.time_to_resolve Data_TS
         ,t.status
         -- , t.users_id_recipient id_solicitante,t.slas_id_tto,t.slas_id_ttr, t.date,t.itilcategories_id id_categoria,t.*
         FROM glpi_tickets t
-        INNER JOIN glpi_entities e ON e.id = t.entities_id
-        INNER JOIN glpi_users u ON u.id = t.users_id_recipient
+        LEFT JOIN glpi_entities e ON e.id = t.entities_id
+        LEFT JOIN glpi_users u1 ON u1.id = t.users_id_recipient
+
         INNER JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
         INNER JOIN glpi_slas sa ON sa.id = t.slas_id_tto
         INNER JOIN glpi_slas ss ON ss.id = t.slas_id_ttr
         WHERE t.status = 1 ORDER BY t.id"""
         
         # conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
-        dfchamados= pd.read_sql_query(sql_glpi,self.conMySQLGLPI)
+        dfchamadosvencendo= pd.read_sql_query(sql_glpi,self.conMySQLGLPI)
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosPendente(self):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO CHAMADOS PENDENTES ###########################################################")
@@ -859,13 +870,11 @@ class GLPI:
         pyautogui.press('f12')
 
         self.limiteaguardartitulo = 0
-        self.limiteaguardartitulomaximo = 10
-        if bot.esperarTitulo('Save As'):
-            print("Encontrou o titulo")
-        else:
-            self.limiteaguardartitulo = 0
-            self.limiteaguardartitulomaximo = 60
+        self.limiteaguardartitulomaximo = 60
+        if self.sistema == '10':
             bot.esperarTitulo('Salvar como')
+        elif self.sistema == '11':
+            bot.esperarTitulo('Save As')
 
         nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
         BotLog.contprint+=1
@@ -882,12 +891,12 @@ class GLPI:
 
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS PENDENTES ###########################################################")
        
-
-
-    
-
 bot = GLPI()
 BotLog.InicioFim("InicioExecucao")
+
+
+
+
 
 # BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"] = '452405307'
 # bot.id_telegram = '452405307'
@@ -895,13 +904,16 @@ BotLog.InicioFim("InicioExecucao")
 
 
 
+# bot.chamadosVencendo()
 
 
-try:
+
+try: # chamados Pendentes
     bot.chamadosPendente()
 except Exception as e:
-    BotLog.imprimirLog(f"Erro no modulo chamadosPendentes: {e}")
-
+    msg = f"Erro no modulo chamadosPendentes: {e}"
+    BotLog.imprimirLog(msg)
+    BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg)   
 
 teste = datetime.datetime.now()
 bot.horariotermino = bot.horariotermino + timedelta(days=1)
