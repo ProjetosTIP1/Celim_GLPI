@@ -3,5 +3,6 @@
 /dist
 /log
 /venv
+/venv-old
 Celim_GLPI_Alertas.spec
 chromedriver.exe
