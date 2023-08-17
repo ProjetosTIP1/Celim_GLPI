@@ -85,6 +85,7 @@ class GLPI:
         self.limiteaguardartitulo = 0
         self.limiteaguardartitulomaximo = 60
         self.conterro = 0 # contador para mandar mensagem somente se o erro acontecer mais de duas vezes seguida
+        self.enviar_pendentes = True
     def relogio_timer(self,tempo):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO RELOGIO_TIMER ###########################################################")
         for i in range(tempo, 0, -1):
@@ -769,27 +770,34 @@ class GLPI:
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosVencendo(self):
         sql_glpi = f"""
-        SELECT 
-                t.id Numero, 
-                u.name Solicitante, 
-                e.name Entidade, 
-                c.name Categoria, 
-                t.name Titulo, 
-                SUBSTRING(t.content,12,LOCATE('&#60;/p&#62;',SUBSTRING(t.content,12,1000))-1) Descricao
-        ,t.date_creation Data_Abertura,sa.name TA, t.time_to_own Data_TA , ss.name TS, t.time_to_resolve Data_TS
-        ,t.status
-        -- , t.users_id_recipient id_solicitante,t.slas_id_tto,t.slas_id_ttr, t.date,t.itilcategories_id id_categoria,t.*
-        FROM glpi_tickets t
-        LEFT JOIN glpi_entities e ON e.id = t.entities_id
-        LEFT JOIN glpi_users u1 ON u1.id = t.users_id_recipient
-
-        INNER JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
-        INNER JOIN glpi_slas sa ON sa.id = t.slas_id_tto
-        INNER JOIN glpi_slas ss ON ss.id = t.slas_id_ttr
-        WHERE t.status = 1 ORDER BY t.id"""
+                    SELECT t.id,
+                        e.name AS Entidade, 
+                        DATE_FORMAT(t.date_creation, '%d-%m-%Y') Data, 
+                        i.name Categoria, 
+                        u1.name Usuario, 
+                        IFNULL(u2.name,"") Tecnico
+                        ,DATE_FORMAT(t.date, '%d-%m-%Y %T') Data_Hora_Abertura, 
+                        IFNULL(DATE_FORMAT(t.takeintoaccountdate, '%d-%m-%Y %T'),"") Data_Hora_Atendimento
+                        ,ta.name TA,
+                        ts.name TS,
+                        DATE_FORMAT(t.time_to_own, '%d-%m-%Y %T') Tempo_Atendimento,
+                        DATE_FORMAT(t.time_to_resolve, '%d-%m-%Y %T') Tempo_Solução
+                    FROM glpi_tickets t
+                    left JOIN glpi_entities e ON e.id=t.entities_id
+                    left JOIN glpi_tickets_users tu2 ON tu2.tickets_id=t.id AND tu2.type = 2 -- para tecnico
+                    left JOIN glpi_users u2 ON u2.id=tu2.users_id -- para tecnico
+                    left JOIN glpi_tickets_users tu1 ON tu1.tickets_id=t.id AND tu1.type = 1 -- para usuário atribuido
+                    left JOIN glpi_users u1 ON u1.id=tu1.users_id -- para usuário
+                    left JOIN glpi_itilcategories i ON i.id=t.itilcategories_id
+                    left JOIN glpi_slas ta ON ta.id=t.slas_id_tto -- tempo para atendimento
+                    left JOIN glpi_slas ts ON ts.id=t.slas_id_ttr -- tempo para solução
+                    WHERE t.is_deleted = 0  AND t.status IN (1,2)
+                    GROUP BY t.id -- Agrupando pelo numero porque tem um chamado de numero 173 duplicado poque foi atribuido a dois tecnicos
+                    ORDER BY t.id
+        """
         
-        # conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
-        dfchamadosvencendo= pd.read_sql_query(sql_glpi,self.conMySQLGLPI)
+        conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
+        dfchamadosvencendo= pd.read_sql_query(sql_glpi,conMySQLGLPI)
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosPendente(self):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO CHAMADOS PENDENTES ###########################################################")
@@ -855,7 +863,9 @@ class GLPI:
         
         bot.esperarTitulo('dfchamados_pendentes')
 
+        time.sleep(2)
         pyautogui.hotkey("ctrl","t")
+        time.sleep(2)
         pyautogui.hotkey('alt','c','o','t')
         time.sleep(2)
         pyautogui.hotkey("ctrl","c")
@@ -865,7 +875,9 @@ class GLPI:
 
         bot.esperarTitulo('Paint')
 
+        time.sleep(2)
         pyautogui.hotkey("ctrl","v")
+        time.sleep(2)
 
         pyautogui.press('f12')
 
@@ -880,15 +892,13 @@ class GLPI:
         BotLog.contprint+=1
         pyautogui.write(nome_print)
 
+        time.sleep(2)
         pyautogui.hotkey("alt","l")
         time.sleep(2)
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq Excel*"])
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq mspaint*"])
         BotVar.BotTelegram.send_photo(int(bot.id_telegram),open(nome_print,'rb'))
-
-        BotLog.imprimirLog("Mudando o status para Parado")
-        BotTarefas.MudarStatus("Parado")
-
+        self.enviar_pendentes = False
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS PENDENTES ###########################################################")
        
 bot = GLPI()
@@ -908,16 +918,20 @@ BotLog.InicioFim("InicioExecucao")
 
 
 
-try: # chamados Pendentes
-    bot.chamadosPendente()
-except Exception as e:
-    msg = f"Erro no modulo chamadosPendentes: {e}"
-    BotLog.imprimirLog(msg)
-    BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg)   
 
+   
 teste = datetime.datetime.now()
 bot.horariotermino = bot.horariotermino + timedelta(days=1)
 while bot.horariotermino>=datetime.datetime.now():
+    if bot.enviar_pendentes:
+        try: # chamados Pendentes
+            bot.chamadosPendente()
+            BotLog.imprimirLog("Mudando o status para Parado")
+            BotTarefas.MudarStatus("Parado")
+        except Exception as e:
+            msg = f"Erro no modulo chamadosPendentes: {e}"
+            BotLog.imprimirLog(msg)
+            BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg)   
     try:
         bot.novoChamado()
     except Exception as e:
