@@ -35,6 +35,7 @@ from GerarVar import GerarVar
 from GerarLog import Gerarlog
 from GerenciadorTarefas import GerenciadorTarefas
 # from FinalizarExecucao import FinalizarExecucao
+from GerenciadorJanelas import GerenciadorJanelas
 
 
 BotChave = GerarChave()
@@ -45,6 +46,7 @@ BotVar.getParametros(15)# 1 para falar o id do rpa para pegar os parametros
 BotLog = Gerarlog(BotVar)
 BotTarefas = GerenciadorTarefas(BotVar,BotLog)
 # BotFinalizar = FinalizarExecucao(BotVar,BotLog,BotTarefas)
+BotGerenciadorJanelas = GerenciadorJanelas(BotVar=BotVar,BotLog=BotLog)
 
 
 
@@ -470,13 +472,13 @@ class GLPI:
         elemento = '//*[@id="login_name"]' # //*[@id="login_name"]
         esperarElemento(elemento)
         # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        self.driver.find_element("xpath",elemento).send_keys("celim")
+        self.driver.find_element("xpath",elemento).send_keys(BotVar.dfparametros.query('NOME=="Usuario_Rede"')['VALOR'].iloc[0])
         # self.driver.find_element("xpath",elemento).click() 
 
         elemento = '/html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[3]/input' # 
         esperarElemento(elemento)
         # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        self.driver.find_element("xpath",elemento).send_keys("Rpa@celim")
+        self.driver.find_element("xpath",elemento).send_keys(BotVar.dfparametros.query('NOME=="Senha_Rede"')['VALOR'].iloc[0])
         # self.driver.find_element("xpath",elemento).click() 
 
         elemento = '/html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[6]/button' # botão logar /html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[6]/button
@@ -781,7 +783,8 @@ class GLPI:
                         ,ta.name TA,
                         ts.name TS,
                         DATE_FORMAT(t.time_to_own, '%d-%m-%Y %T') Tempo_Atendimento,
-                        DATE_FORMAT(t.time_to_resolve, '%d-%m-%Y %T') Tempo_Solução
+                        DATE_FORMAT(t.time_to_resolve, '%d-%m-%Y %T') Tempo_Solução,
+                        t.sla_waiting_duration Tempo_Espera_Segundos
                     FROM glpi_tickets t
                     left JOIN glpi_entities e ON e.id=t.entities_id
                     left JOIN glpi_tickets_users tu2 ON tu2.tickets_id=t.id AND tu2.type = 2 -- para tecnico
@@ -798,6 +801,11 @@ class GLPI:
         
         conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
         dfchamadosvencendo= pd.read_sql_query(sql_glpi,conMySQLGLPI)
+        dfchamadosvencendo["Tempo_TA_Segundos"] = 0
+        dfchamadosvencendo["Tempo_TS_Segundos"] = 0
+        for col, valor in enumerate(dfchamadosvencendo['Data_Hora_Abertura']):
+            print("")
+
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosPendente(self):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO CHAMADOS PENDENTES ###########################################################")
@@ -861,7 +869,8 @@ class GLPI:
         # Subprocesso para executar o comando
         subprocess.Popen(comando_excel)
         
-        bot.esperarTitulo('dfchamados_pendentes')
+        BotGerenciadorJanelas.esperarTitulo(0,30,'dfchamados_pendentes',2)
+        BotGerenciadorJanelas.ativarTela('dfchamados_pendentes',2)
 
         time.sleep(2)
         pyautogui.hotkey("ctrl","t")
@@ -873,7 +882,7 @@ class GLPI:
         paint = ['mspaint']
         subprocess.Popen(paint)
 
-        bot.esperarTitulo('Paint')
+        BotGerenciadorJanelas.esperarTitulo(0,30,'Paint',2)
 
         time.sleep(2)
         pyautogui.hotkey("ctrl","v")
@@ -884,9 +893,9 @@ class GLPI:
         self.limiteaguardartitulo = 0
         self.limiteaguardartitulomaximo = 60
         if self.sistema == '10':
-            bot.esperarTitulo('Salvar como')
+            BotGerenciadorJanelas.esperarTitulo(0,30,'Salvar como',2)
         elif self.sistema == '11':
-            bot.esperarTitulo('Save As')
+            BotGerenciadorJanelas.esperarTitulo(0,30,'Save As',2)
 
         nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
         BotLog.contprint+=1
@@ -911,6 +920,13 @@ BotLog.InicioFim("InicioExecucao")
 # BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"] = '452405307'
 # bot.id_telegram = '452405307'
 # bot.tempo = 5
+
+
+
+
+# BotGerenciadorJanelas.ativarTela('Entrar em sua conta - Google Chrome')
+# BotGerenciadorJanelas.ativarTela('WhatsApp')
+# BotGerenciadorJanelas.ativarTela('dfchamados_pendentes',2)
 
 
 
