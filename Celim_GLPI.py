@@ -5,7 +5,7 @@ import MySQLdb
 import pandas as pd
 import time
 import telebot
-import sys # para importação relativa
+import sys # para importação absoluta
 import pyautogui
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -34,7 +34,7 @@ from GerarChave import GerarChave
 from GerarVar import GerarVar
 from GerarLog import Gerarlog
 from GerenciadorTarefas import GerenciadorTarefas
-# from FinalizarExecucao import FinalizarExecucao
+from FinalizarExecucao import FinalizarExecucao
 from GerenciadorJanelas import GerenciadorJanelas
 
 
@@ -45,9 +45,9 @@ BotVar.getParametros(15)# 1 para falar o id do rpa para pegar os parametros
 # BotAreaTransferencia = AreaTransferencia()
 BotLog = Gerarlog(BotVar)
 BotTarefas = GerenciadorTarefas(BotVar,BotLog)
-# BotFinalizar = FinalizarExecucao(BotVar,BotLog,BotTarefas)
+BotFinalizar = FinalizarExecucao(BotVar,BotLog,BotTarefas)
 BotGerenciadorJanelas = GerenciadorJanelas(BotVar=BotVar,BotLog=BotLog)
-
+BotLog.InicioFim("InicioExecucao")
 
 
 class GLPI:
@@ -179,7 +179,7 @@ class GLPI:
                 descricao_limpa = descricao[:x]+descricao[y:]
                 descricao_limpa = bot.limparDescricao(descricao_limpa)
                 return descricao_limpa
-    def tempoComercial(self,datastr):
+    def tempoComercial(self,data_inicio_str,data_fim_str = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")):
         # BotLog.imprimirLog("########################################################### INICIANDO MODULO TEMPO COMERCIAL ###########################################################")
         # Lendo a tabela de feriados
         sql_holidays = f"""
@@ -189,7 +189,7 @@ class GLPI:
             """
         conMySQLholidays = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
         dfholidays= pd.read_sql_query(sql_holidays,conMySQLholidays)
-        BotLog.gerarExcel(dfholidays,'dfholidays'+datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S"))
+        BotLog.gerarExcel(dfholidays,'dfholidays'+datetime.datetime.today().strftime("%Y-%m-%d_%H-%M-%S"))
         # Criando uma lista com os feriado
         self.feriados = []
         # self.chamadosvencendoavisado.append(str(numerodf))
@@ -232,9 +232,10 @@ class GLPI:
                     begin_data = begin_data + datetime.timedelta(days=1)
 
     
-        date_time = datetime.datetime.strptime(datastr,"%d-%m-%Y %H:%M:%S")
-        date = date_time.date()
-        hour = date_time.time()
+        data_inicio_dt = datetime.datetime.strptime(data_inicio_str,"%d-%m-%Y %H:%M:%S")
+        data_fim_dt = datetime.datetime.strptime(data_fim_str,"%d-%m-%Y %H:%M:%S")
+        date = data_inicio_dt.date()
+        hour = data_inicio_dt.time()
         tempo_segundos = 0
 
         # hoje = datetime.datetime.now()
@@ -242,61 +243,66 @@ class GLPI:
         # for x in range(10):
         #     dia_semana = hoje.weekday()
         #     hoje = hoje + datetime.timedelta(days=1)
-        horas = date_time.hour
+        horas = data_inicio_dt.hour
 
 
         hoje_data = datetime.datetime.now().date()
-        while date_time.date() <= datetime.datetime.now().date():
-            dia_semana = date_time.weekday() 
-            if date_time.weekday() == 5 or date_time.weekday() == 6: # pular um dia se for final de semana
+        while data_inicio_dt.date() <= data_fim_dt.date():
+            dia_semana = data_inicio_dt.weekday() 
+            if data_inicio_dt.weekday() == 5 or data_inicio_dt.weekday() == 6: # pular um dia se for final de semana
                 # print("Final de semana")
-                date_time = date_time + datetime.timedelta(days=1)
-                date_time = date_time.replace(hour=7,minute=0,second=0)
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0,second=0)
                 continue
-            if date_time.date() in self.feriados: # pular um dia se for feriado
+            if data_inicio_dt.date() in self.feriados: # pular um dia se for feriado
                 # print("E um feriado")
-                date_time = date_time + datetime.timedelta(days=1)
-                date_time = date_time.replace(hour=7,minute=0,second=0)
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0,second=0)
                 continue
-            if (date_time.weekday() == 4 and date_time.hour>16) or (date_time.weekday() == 4 and date_time.hour==17 and date_time.minute>0): # ir para o proximo dia se for mais de 16 horas e sexta
-                date_time = date_time + datetime.timedelta(days=1)
-                date_time = date_time.replace(hour=7,minute=0,second=0)
+            if (data_inicio_dt.weekday() == 4 and data_inicio_dt.hour>16) or (data_inicio_dt.weekday() == 4 and data_inicio_dt.hour==17 and data_inicio_dt.minute>0): # ir para o proximo dia se for mais de 16 horas e sexta
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0,second=0)
                 continue
-            if (date_time.weekday() in (0,1,2,3) and date_time.hour>17) or (date_time.weekday() in (0,1,2,3) and date_time.hour==17 and date_time.minute>0): # ir para o proximo dia se for mais de 17 horas
-                date_time = date_time + datetime.timedelta(days=1)
-                date_time = date_time.replace(hour=7,minute=0,second=0)
+            if (data_inicio_dt.weekday() in (0,1,2,3) and data_inicio_dt.hour>17) or (data_inicio_dt.weekday() in (0,1,2,3) and data_inicio_dt.hour==17 and data_inicio_dt.minute>0): # ir para o proximo dia se for mais de 17 horas
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0,second=0)
                 continue
-            if date_time.hour<7: # se o chamado for aberto antes das 7
-                date_time = date_time.replace(hour=7,minute=0,second=0)
-            if (date_time.hour != 7 or date_time.minute != 0) and (date_time.hour>=7) and (date_time.hour<17): # caucula diferença para o primeiro dia
-                fim_do_dia = date_time
+            if data_inicio_dt.hour<7: # se o chamado for aberto antes das 7
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0,second=0)
+            if data_inicio_dt.day == data_fim_dt.day: # para quando a data de inicio e fim for no mesmo dia, caucula a diferença de horas so no dia
+                diferenca = data_fim_dt - data_inicio_dt
+                tempo_segundos+=diferenca.seconds
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
+                continue
+            if (data_inicio_dt.hour != 7 or data_inicio_dt.minute != 0) and (data_inicio_dt.hour>=7) and (data_inicio_dt.hour<17): # caucula diferença para o primeiro dia
+                fim_do_dia = data_inicio_dt
                 fim_do_dia = fim_do_dia.replace(hour=17,minute=0,second=0)
-                diferenca = fim_do_dia - date_time
+                diferenca = fim_do_dia - data_inicio_dt
                 # tempo_segundos+=(diferenca.hour * 3600)
                 # tempo_segundos+=(diferenca.minute * 60)
                 tempo_segundos+=diferenca.seconds
-                if date_time.weekday() == 4: # tirar uma hora se for a sexta
+                if data_inicio_dt.weekday() == 4: # tirar uma hora se for a sexta
                     tempo_segundos-=3600
-                date_time = date_time.replace(hour=7,minute=0)
-                date_time = date_time + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt.replace(hour=7,minute=0)
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
                 continue
-            if date_time.date() == datetime.datetime.now().date(): # diferença para hora atual, ultimo dia
-                hora_atual = datetime.datetime.now()
-                if (hora_atual.weekday() == 4 and hora_atual.hour > 16) or (hora_atual.weekday() == 4 and hora_atual.hour == 16 and hora_atual.minute > 0):
-                    hora_atual = hora_atual.replace(hour=16,minute=0)
-                if (hora_atual.weekday() in (0,1,2,3) and hora_atual.hour > 17) or (hora_atual.weekday() in (0,1,2,3) and hora_atual.hour == 17 and hora_atual.hour > 0):
-                    hora_atual = hora_atual.replace(hour=17,minute=0)
-                diferenca = hora_atual - date_time
+            if data_inicio_dt.date() == data_fim_dt.date(): # diferença de hora do ultimo dia
+                # hora_atual = datetime.datetime.now()
+                if (data_fim_dt.weekday() == 4 and data_fim_dt.hour > 16) or (data_fim_dt.weekday() == 4 and data_fim_dt.hour == 16 and data_fim_dt.minute > 0):
+                    data_fim_dt = data_fim_dt.replace(hour=16,minute=0)
+                if (data_fim_dt.weekday() in (0,1,2,3) and data_fim_dt.hour > 17) or (data_fim_dt.weekday() in (0,1,2,3) and data_fim_dt.hour == 17 and data_fim_dt.hour > 0):
+                    data_fim_dt = data_fim_dt.replace(hour=17,minute=0)
+                diferenca = data_fim_dt - data_inicio_dt
                 # tempo_segundos+=(diferenca.hour * 3600)
                 # tempo_segundos+=(diferenca.minute * 60)
                 tempo_segundos+=diferenca.seconds
-                date_time = date_time + datetime.timedelta(days=1)
+                data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
                 continue
-            if date_time.weekday() == 4: # se for sexta soma 9 horas
+            if data_inicio_dt.weekday() == 4: # se for sexta soma 9 horas
                 tempo_segundos+=32400
             else: # se não for sexta soma dez horas
                 tempo_segundos+=36000
-            date_time = date_time + datetime.timedelta(days=1)
+            data_inicio_dt = data_inicio_dt + datetime.timedelta(days=1)
 
         # BotLog.imprimirLog("########################################################### FINALIZANDO MODULO TEMPO COMERCIAL ###########################################################")
         return tempo_segundos
@@ -461,9 +467,8 @@ class GLPI:
         BotLog.imprimirLog("Iniciando o Navegador")
         # self.driver = webdriver.Chrome(r"C:\Users\raisson.charles\Desktop\Python\RPA\02_essencial\chromedriver.exe", options=options)
         # self.driver = webdriver.Chrome(options=options,r"chromedriver.exe")
-        url = 'http://192.168.11.50:8080/glpi/' # site depois do qr code
+        url = 'http://chamado.pedreiraumvalemix.com.br/' # site depois do qr code
         # url = 'http://localhost/glpi/' # site depois do qr code
-        # url = 'https://www.bancointer.com.br/' # site depois do qr code
         self.driver.get(url)   
         # self.driver.maximize_window()
         # self.driver.minimize_window()
@@ -798,13 +803,39 @@ class GLPI:
                     GROUP BY t.id -- Agrupando pelo numero porque tem um chamado de numero 173 duplicado poque foi atribuido a dois tecnicos
                     ORDER BY t.id
         """
-        
         conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
         dfchamadosvencendo= pd.read_sql_query(sql_glpi,conMySQLGLPI)
-        dfchamadosvencendo["Tempo_TA_Segundos"] = 0
-        dfchamadosvencendo["Tempo_TS_Segundos"] = 0
-        for col, valor in enumerate(dfchamadosvencendo['Data_Hora_Abertura']):
-            print("")
+        dfchamadosvencendo["Tempo_TA_Segundos"] = 0 # Iniciando a coluna para armazenar o TA do chamado em segundos 
+        dfchamadosvencendo["Tempo_TS_Segundos"] = 0 # Iniciando a coluna para armazenar o TS do chamado em segundos 
+        dfchamadosvencendo["Tempo_TA_Segundos_Agora"] = 0 # Iniciando a coluna para armazenar o TA percorrido do chamado
+        dfchamadosvencendo["Tempo_TS_Segundos_Agora"] = 0 # Iniciando a coluna para armazenar o TS percorrido do chamado
+        dfchamadosvencendo["Tempo_TA_Percent"] = 0 # Iniciando a coluna para armazenar o percentual do TA
+        dfchamadosvencendo["Tempo_TS_Percent"] = 0 # Iniciando a coluna para armazenar o percentual do TS
+
+        for linha, valor in enumerate(dfchamadosvencendo['Data_Hora_Abertura']):
+            print(dfchamadosvencendo['id'].iloc[linha])
+            if not dfchamadosvencendo['Tecnico'].iloc[linha] and dfchamadosvencendo['Data_Hora_Atendimento'].iloc[linha]: #Verifica se o chamado foi respondido se ser atribuido
+                link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+                id_chamado = str(dfchamadosvencendo['id'].iloc[linha])
+                msg = f"""❗️ Atenção, Chamado {id_chamado} foi iniciado antendiemnto mas esta sem tecnico definido ❗️
+                        🔗 {link}{id_chamado}
+                        """.replace("    ","")
+                BotLog.imprimirLog(msg)
+                BotVar.BotTelegram.send_message(int(self.id_telegram),msg)
+            if not dfchamadosvencendo['Data_Hora_Atendimento'].iloc[linha]: #Caucula o tempo TA caso a coluna esteja em branco, não tenha iniciado atendimento
+                print("Chamado "+str(dfchamadosvencendo['id'].iloc[linha])+" ainda não foi iniciado antendiemnto, verificando TA")
+                dfchamadosvencendo["Tempo_TA_Segundos"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo_Atendimento'].iloc[linha]) #Cauculando TA em segundos
+                dfchamadosvencendo["Tempo_TA_Segundos_Agora"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TA percorrido ate a hora atual em segundos
+                dfchamadosvencendo["Tempo_TA_Percent"].iloc[linha] = round(((dfchamadosvencendo["Tempo_TA_Segundos_Agora"].iloc[linha] / dfchamadosvencendo["Tempo_TA_Segundos"].iloc[linha])*100),2) # Cauculando o percentual do TA percorrido
+                # ta_percentual = round(ta_percentual,2)
+            
+            dfchamadosvencendo["Tempo_TS_Segundos"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo_Solução'].iloc[linha]) #Cauculando TS em segundos
+            dfchamadosvencendo["Tempo_TS_Segundos_Agora"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TS percorrido ate a hora atual em segundos
+            dfchamadosvencendo["Tempo_TS_Percent"].iloc[linha] = round(((dfchamadosvencendo["Tempo_TS_Segundos_Agora"].iloc[linha] / dfchamadosvencendo["Tempo_TS_Segundos"].iloc[linha])*100),2) # Cauculando o percentual do TS percorrido
+
+        dfchamadosvencendo["Tempo_TA_Percent"].iloc[0] = 92
+        dfchamadosvencidos = dfchamadosvencendo.query('Tempo_TA_Percent > 80 | Tempo_TS_Percent > 80')
+        print("")
 
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosPendente(self):
@@ -856,7 +887,7 @@ class GLPI:
 
         nome_arquivo = 'dfchamados_pendentes_'+datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S")
         BotLog.gerarExcel(dfchamadospendente,nome_arquivo)
-        caminho_arquivo = r"log\\log"+BotLog.nomedir+"\\dataframe\\"+nome_arquivo+str(BotLog.contexcel)+".xlsx"
+        caminho_arquivo = r"log\\log"+BotLog.nomedir+"\\dataframe\\"+nome_arquivo+'_'+str(BotLog.contexcel)+".xlsx"
 
         BotLog.imprimirLog("Mudando o status para executando")
         BotTarefas.MudarStatus("Executando")
@@ -869,26 +900,30 @@ class GLPI:
         # Subprocesso para executar o comando
         subprocess.Popen(comando_excel)
         
-        BotGerenciadorJanelas.esperarTitulo(0,30,'dfchamados_pendentes',2)
+        if not BotGerenciadorJanelas.esperarTitulo(0,30,'dfchamados_pendentes',2):
+            raise Exception("Erro ao abrir a planilha com os chamados pendentes")
         BotGerenciadorJanelas.ativarTela('dfchamados_pendentes',2)
 
-        time.sleep(2)
+        time.sleep(10)
         pyautogui.hotkey("ctrl","t")
-        time.sleep(2)
+        time.sleep(10)
         pyautogui.hotkey('alt','c','o','t')
-        time.sleep(2)
+        time.sleep(10)
         pyautogui.hotkey("ctrl","c")
+        time.sleep(10)
 
         paint = ['mspaint']
         subprocess.Popen(paint)
 
-        BotGerenciadorJanelas.esperarTitulo(0,30,'Paint',2)
+        if not BotGerenciadorJanelas.esperarTitulo(0,30,'Paint',2):
+            raise Exception("Erro na hora de abrir o paint")
 
-        time.sleep(2)
+        time.sleep(4)
         pyautogui.hotkey("ctrl","v")
-        time.sleep(2)
+        time.sleep(4)
 
         pyautogui.press('f12')
+        time.sleep(4)
 
         self.limiteaguardartitulo = 0
         self.limiteaguardartitulomaximo = 60
@@ -897,13 +932,14 @@ class GLPI:
         elif self.sistema == '11':
             BotGerenciadorJanelas.esperarTitulo(0,30,'Save As',2)
 
+        time.sleep(4)
         nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
         BotLog.contprint+=1
         pyautogui.write(nome_print)
 
-        time.sleep(2)
+        time.sleep(4)
         pyautogui.hotkey("alt","l")
-        time.sleep(2)
+        time.sleep(4)
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq Excel*"])
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq mspaint*"])
         BotVar.BotTelegram.send_photo(int(bot.id_telegram),open(nome_print,'rb'))
@@ -911,7 +947,7 @@ class GLPI:
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS PENDENTES ###########################################################")
        
 bot = GLPI()
-BotLog.InicioFim("InicioExecucao")
+
 
 
 
@@ -920,16 +956,6 @@ BotLog.InicioFim("InicioExecucao")
 # BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"] = '452405307'
 # bot.id_telegram = '452405307'
 # bot.tempo = 5
-
-
-
-
-# BotGerenciadorJanelas.ativarTela('Entrar em sua conta - Google Chrome')
-# BotGerenciadorJanelas.ativarTela('WhatsApp')
-# BotGerenciadorJanelas.ativarTela('dfchamados_pendentes',2)
-
-
-
 # bot.chamadosVencendo()
 
 
@@ -945,6 +971,8 @@ while bot.horariotermino>=datetime.datetime.now():
             BotLog.imprimirLog("Mudando o status para Parado")
             BotTarefas.MudarStatus("Parado")
         except Exception as e:
+            BotLog.imprimirLog("Mudando o status para Parado")
+            BotTarefas.MudarStatus("Parado")
             msg = f"Erro no modulo chamadosPendentes: {e}"
             BotLog.imprimirLog(msg)
             BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg)   
@@ -964,8 +992,8 @@ while bot.horariotermino>=datetime.datetime.now():
             BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg_erro)
     bot.relogio_timer(bot.tempo)
     
-
-bot.InicioFim("FimExecucao")
+BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
+# bot.InicioFim("FimExecucao")
 # BotFinalizar.finalizarExecucao("Finalizando execução com sucesso na ultima linha")
 
 
