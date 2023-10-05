@@ -378,7 +378,7 @@ class GLPI:
             ts = dfchamados['TS'].iloc[x]
             ts = ts.replace("TS","Tempo para solução")
             data_ts = dfchamados['Data_TS'].iloc[x].strftime('%d-%m-%Y %H:%M:%S')
-            link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+            link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
             mensagem = f""" ⚠️ Novo Chamado!⚠️
             🎟 {numero}
             👤 {solicitante}
@@ -646,7 +646,7 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TA '+str(progresso_sla_ta)+'%'+' TS '+str(progresso_sla_ts)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -681,7 +681,7 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TA '+str(progresso_sla_ta)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -712,7 +712,7 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TS '+str(progresso_sla_ts)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -742,7 +742,7 @@ class GLPI:
             data_ta = dfchamadosvencidos['Tempo para atendimento'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
             data_ts = dfchamadosvencidos['Tempo para solução'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
             vencido = dfchamadosvencidos['Vencido'].iloc[x]
-            link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+            link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
             if status == 'Novo':
                 status = '📫 '+status 
             else:
@@ -815,7 +815,7 @@ class GLPI:
         for linha, valor in enumerate(dfchamadosvencendo['Data_Hora_Abertura']):
             print(dfchamadosvencendo['id'].iloc[linha])
             if not dfchamadosvencendo['Tecnico'].iloc[linha] and dfchamadosvencendo['Data_Hora_Atendimento'].iloc[linha]: #Verifica se o chamado foi respondido se ser atribuido
-                link = r'http://192.168.11.50:8080/glpi/front/ticket.form.php?id='
+                link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
                 id_chamado = str(dfchamadosvencendo['id'].iloc[linha])
                 msg = f"""❗️ Atenção, Chamado {id_chamado} foi iniciado antendiemnto mas esta sem tecnico definido ❗️
                         🔗 {link}{id_chamado}
