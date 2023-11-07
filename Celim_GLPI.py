@@ -44,10 +44,14 @@ BotVar.chaveBD = BotChave.gerarChave(chave)
 BotVar.getParametros(15)# 1 para falar o id do rpa para pegar os parametros
 # BotAreaTransferencia = AreaTransferencia()
 BotLog = Gerarlog(BotVar)
+
+# BotVar.dfparametros.loc[BotVar.dfparametros['NOME'] == "id_telegram_iniciofim", 'VALOR'] = 452405307
+# BotLog.InicioFim("InicioExecucao")
+
 BotTarefas = GerenciadorTarefas(BotVar,BotLog)
 BotFinalizar = FinalizarExecucao(BotVar,BotLog,BotTarefas)
 BotGerenciadorJanelas = GerenciadorJanelas(BotVar=BotVar,BotLog=BotLog)
-BotLog.InicioFim("InicioExecucao")
+
 
 
 class GLPI:
@@ -320,7 +324,7 @@ class GLPI:
     def novoChamado(self):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO NOVO CHAMADO ###########################################################")
         
-        sql_ultimo = 'SELECT max(id_chamado) ULTIMO_CHAMADO FROM tb015_glpi'
+        sql_ultimo = 'SELECT max(id_chamado) ULTIMO_CHAMADO FROM tb015_glpi WHERE TIPO_AVISO = "NOVO"'
         conMySQLRPA = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db=BotVar.bancomysql) #Criando a conexão
         dfultimochamado= pd.read_sql_query(sql_ultimo,conMySQLRPA)
         id = dfultimochamado['ULTIMO_CHAMADO'].iloc[0]
@@ -378,7 +382,8 @@ class GLPI:
             ts = dfchamados['TS'].iloc[x]
             ts = ts.replace("TS","Tempo para solução")
             data_ts = dfchamados['Data_TS'].iloc[x].strftime('%d-%m-%Y %H:%M:%S')
-            link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+            # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+            link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
             mensagem = f""" ⚠️ Novo Chamado!⚠️
             🎟 {numero}
             👤 {solicitante}
@@ -429,9 +434,18 @@ class GLPI:
         BotLog.imprimirLog("########################################################### INICIANDO MODULO CHAMADOS VENCENDO ###########################################################")
 
         sql_glpi = f"""
-            SELECT t.id Numero, u1.name Solicitante, e.name Entidade, c.name Categoria, t.name Titulo, t.content Descricao
-            ,t.date_creation Data_Abertura,sa.name TA, t.time_to_own Data_TA , ss.name TS, t.time_to_resolve Data_TS
-            ,t.status
+            SELECT  t.id Numero, 
+                    u1.name Solicitante, 
+                    e.name Entidade, 
+                    c.name Categoria, 
+                    t.name Titulo, 
+                    t.content Descricao,
+                    t.date_creation Data_Abertura,
+                    sa.name TA, 
+                    t.time_to_own Data_TA , 
+                    ss.name TS, 
+                    t.time_to_resolve Data_TS
+                    ,t.status
             FROM glpi_tickets t
             LEFT JOIN glpi_entities e ON e.id = t.entities_id
             left JOIN glpi_tickets_users tu1 ON tu1.tickets_id=t.id AND tu1.type = 1 -- para usuário atribuido
@@ -467,8 +481,8 @@ class GLPI:
         BotLog.imprimirLog("Iniciando o Navegador")
         # self.driver = webdriver.Chrome(r"C:\Users\raisson.charles\Desktop\Python\RPA\02_essencial\chromedriver.exe", options=options)
         # self.driver = webdriver.Chrome(options=options,r"chromedriver.exe")
-        url = 'http://chamado.pedreiraumvalemix.com.br/' # site depois do qr code
-        # url = 'http://localhost/glpi/' # site depois do qr code
+        url = 'http://chamado.pedreiraumvalemix.com.br/' 
+        # url = 'http://localhost/glpi/' 
         self.driver.get(url)   
         # self.driver.maximize_window()
         # self.driver.minimize_window()
@@ -646,7 +660,8 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TA '+str(progresso_sla_ta)+'%'+' TS '+str(progresso_sla_ts)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -681,7 +696,8 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TA '+str(progresso_sla_ta)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -712,7 +728,8 @@ class GLPI:
                     ts = dfchamados_linha['TS'].iloc[0]
                     ts = ts.replace("TS","Tempo para solução")
                     data_ts = dfchamados_linha['Data_TS'].iloc[0].strftime('%d-%m-%Y %H:%M:%S')
-                    link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                    link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
                     dic = {'Numero':numerodf,'Status':status,'Vencido':'TS '+str(progresso_sla_ts)+'%','Data_Abertura':data_abertura,
                            'Tempo para atendimento':data_ta,'Tempo para solução':data_ts,'Solicitante':solicitante,'Entidade':entidade,
                            'Categoria':categoria,'Titulo':titulo,'Descricao':descricao_limpa}
@@ -742,7 +759,8 @@ class GLPI:
             data_ta = dfchamadosvencidos['Tempo para atendimento'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
             data_ts = dfchamadosvencidos['Tempo para solução'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
             vencido = dfchamadosvencidos['Vencido'].iloc[x]
-            link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+            # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+            link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
             if status == 'Novo':
                 status = '📫 '+status 
             else:
@@ -777,19 +795,22 @@ class GLPI:
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosVencendo(self):
         sql_glpi = f"""
-                    SELECT t.id,
-                        e.name AS Entidade, 
-                        DATE_FORMAT(t.date_creation, '%d-%m-%Y') Data, 
-                        i.name Categoria, 
-                        u1.name Usuario, 
-                        IFNULL(u2.name,"") Tecnico
-                        ,DATE_FORMAT(t.date, '%d-%m-%Y %T') Data_Hora_Abertura, 
-                        IFNULL(DATE_FORMAT(t.takeintoaccountdate, '%d-%m-%Y %T'),"") Data_Hora_Atendimento
-                        ,ta.name TA,
-                        ts.name TS,
-                        DATE_FORMAT(t.time_to_own, '%d-%m-%Y %T') Tempo_Atendimento,
-                        DATE_FORMAT(t.time_to_resolve, '%d-%m-%Y %T') Tempo_Solução,
-                        t.sla_waiting_duration Tempo_Espera_Segundos
+                    SELECT  t.id Numero,
+                            u1.name Solicitante, 
+                            e.name Entidade, 
+                            i.name Categoria,   
+                            t.name Titulo, 
+                            t.content Descricao,
+                            DATE_FORMAT(t.date_creation, '%d-%m-%Y') Data_Abertura
+                            ,t.status Status
+                            ,IFNULL(u2.name,"") Tecnico
+                            ,DATE_FORMAT(t.date, '%d-%m-%Y %T') Data_Hora_Abertura, 
+                            IFNULL(DATE_FORMAT(t.takeintoaccountdate, '%d-%m-%Y %T'),"") Data_Hora_Atendimento
+                            ,ta.name TA,
+                            ts.name TS,
+                            DATE_FORMAT(t.time_to_own, '%d-%m-%Y %T') 'Tempo para atendimento',
+                            DATE_FORMAT(t.time_to_resolve, '%d-%m-%Y %T') 'Tempo para solução',
+                            t.sla_waiting_duration Tempo_Espera_Segundos
                     FROM glpi_tickets t
                     left JOIN glpi_entities e ON e.id=t.entities_id
                     left JOIN glpi_tickets_users tu2 ON tu2.tickets_id=t.id AND tu2.type = 2 -- para tecnico
@@ -805,17 +826,18 @@ class GLPI:
         """
         conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
         dfchamadosvencendo= pd.read_sql_query(sql_glpi,conMySQLGLPI)
-        dfchamadosvencendo["Tempo_TA_Segundos"] = 0 # Iniciando a coluna para armazenar o TA do chamado em segundos 
-        dfchamadosvencendo["Tempo_TS_Segundos"] = 0 # Iniciando a coluna para armazenar o TS do chamado em segundos 
-        dfchamadosvencendo["Tempo_TA_Segundos_Agora"] = 0 # Iniciando a coluna para armazenar o TA percorrido do chamado
-        dfchamadosvencendo["Tempo_TS_Segundos_Agora"] = 0 # Iniciando a coluna para armazenar o TS percorrido do chamado
-        dfchamadosvencendo["Tempo_TA_Percent"] = 0 # Iniciando a coluna para armazenar o percentual do TA
-        dfchamadosvencendo["Tempo_TS_Percent"] = 0 # Iniciando a coluna para armazenar o percentual do TS
+        dfchamadosvencendo["TA_S"] = 0 # Iniciando a coluna para armazenar o TA do chamado em segundos 
+        dfchamadosvencendo["TS_S"] = 0 # Iniciando a coluna para armazenar o TS do chamado em segundos 
+        dfchamadosvencendo["TA_S_A"] = 0 # Iniciando a coluna para armazenar o TA percorrido do chamado
+        dfchamadosvencendo["TS_S_A"] = 0 # Iniciando a coluna para armazenar o TS percorrido do chamado
+        dfchamadosvencendo["TA_P"] = 0 # Iniciando a coluna para armazenar o percentual do TA
+        dfchamadosvencendo["TS_P"] = 0 # Iniciando a coluna para armazenar o percentual do TS
 
         for linha, valor in enumerate(dfchamadosvencendo['Data_Hora_Abertura']):
-            print(dfchamadosvencendo['id'].iloc[linha])
+            print(dfchamadosvencendo['Numero'].iloc[linha])
             if not dfchamadosvencendo['Tecnico'].iloc[linha] and dfchamadosvencendo['Data_Hora_Atendimento'].iloc[linha]: #Verifica se o chamado foi respondido se ser atribuido
-                link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+                link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
                 id_chamado = str(dfchamadosvencendo['id'].iloc[linha])
                 msg = f"""❗️ Atenção, Chamado {id_chamado} foi iniciado antendiemnto mas esta sem tecnico definido ❗️
                         🔗 {link}{id_chamado}
@@ -823,19 +845,63 @@ class GLPI:
                 BotLog.imprimirLog(msg)
                 BotVar.BotTelegram.send_message(int(self.id_telegram),msg)
             if not dfchamadosvencendo['Data_Hora_Atendimento'].iloc[linha]: #Caucula o tempo TA caso a coluna esteja em branco, não tenha iniciado atendimento
-                print("Chamado "+str(dfchamadosvencendo['id'].iloc[linha])+" ainda não foi iniciado antendiemnto, verificando TA")
-                dfchamadosvencendo["Tempo_TA_Segundos"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo_Atendimento'].iloc[linha]) #Cauculando TA em segundos
-                dfchamadosvencendo["Tempo_TA_Segundos_Agora"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TA percorrido ate a hora atual em segundos
-                dfchamadosvencendo["Tempo_TA_Percent"].iloc[linha] = round(((dfchamadosvencendo["Tempo_TA_Segundos_Agora"].iloc[linha] / dfchamadosvencendo["Tempo_TA_Segundos"].iloc[linha])*100),2) # Cauculando o percentual do TA percorrido
+                print("Chamado "+str(dfchamadosvencendo['Numero'].iloc[linha])+" ainda não foi iniciado antendiemnto, verificando TA")
+                dfchamadosvencendo["TA_S"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo para atendimento'].iloc[linha]) #Cauculando TA em segundos
+                dfchamadosvencendo["TA_S_A"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TA percorrido ate a hora atual em segundos
+                dfchamadosvencendo["TA_P"].iloc[linha] = round(((dfchamadosvencendo["TA_S_A"].iloc[linha] / dfchamadosvencendo["TA_S"].iloc[linha])*100),2) # Cauculando o percentual do TA percorrido
                 # ta_percentual = round(ta_percentual,2)
             
-            dfchamadosvencendo["Tempo_TS_Segundos"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo_Solução'].iloc[linha]) #Cauculando TS em segundos
-            dfchamadosvencendo["Tempo_TS_Segundos_Agora"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TS percorrido ate a hora atual em segundos
-            dfchamadosvencendo["Tempo_TS_Percent"].iloc[linha] = round(((dfchamadosvencendo["Tempo_TS_Segundos_Agora"].iloc[linha] / dfchamadosvencendo["Tempo_TS_Segundos"].iloc[linha])*100),2) # Cauculando o percentual do TS percorrido
+            dfchamadosvencendo["TS_S"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha],dfchamadosvencendo['Tempo para solução'].iloc[linha]) #Cauculando TS em segundos
+            dfchamadosvencendo["TS_S_A"].iloc[linha] = self.tempoComercial(dfchamadosvencendo['Data_Hora_Abertura'].iloc[linha]) #Cauculando o tempo TS percorrido ate a hora atual em segundos
+            dfchamadosvencendo["TS_P"].iloc[linha] = round(((dfchamadosvencendo["TS_S_A"].iloc[linha] / dfchamadosvencendo["TS_S"].iloc[linha])*100),2) # Cauculando o percentual do TS percorrido
 
-        dfchamadosvencendo["Tempo_TA_Percent"].iloc[0] = 92
-        dfchamadosvencidos = dfchamadosvencendo.query('Tempo_TA_Percent > 80 | Tempo_TS_Percent > 80')
+        # dfchamadosvencendo["TA_P"].iloc[0] = 92
+        dfchamadosvencidos = dfchamadosvencendo.query('TA_P > 80 | TS_P > 80')
         print("")
+
+        for x in range(len(dfchamadosvencidos.index)):
+            # ‼️⚠️👩‍🦰🆕📪📫📬📮📭✉️📩📨📥📤❗️🧨
+            numerodf = dfchamadosvencidos['Numero'].iloc[x]
+            status = dfchamadosvencidos['Status'].iloc[x]
+            solicitante = dfchamadosvencidos['Solicitante'].iloc[x]
+            entidade = dfchamadosvencidos['Entidade'].iloc[x]
+            categoria = dfchamadosvencidos['Categoria'].iloc[x]
+            titulo = dfchamadosvencidos['Titulo'].iloc[x]
+            descricao = dfchamadosvencidos['Descricao'].iloc[x]
+            data_abertura = dfchamadosvencidos['Data_Abertura'].iloc[x]
+
+            data_ta = dfchamadosvencidos['Tempo para atendimento'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
+            data_ts = dfchamadosvencidos['Tempo para solução'].iloc[x] #.strftime('%d-%m-%Y %H:%M:%S')
+            vencido = dfchamadosvencidos['Vencido'].iloc[x]
+            # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
+            link = BotVar.dfparametros.query('NOME=="link_glpi"')['VALOR'].iloc[0]
+            if status == 'Novo':
+                status = '📫 '+status 
+            else:
+                status = '📬 '+status 
+            mensagem = f""" 🔴 Chamado Vencendo!🔴
+            🎟 {numerodf}
+            {status}
+            📅 {data_abertura}
+            ⏱ {data_ta}
+            ⏰ {data_ts}
+            🧨 {vencido}
+            👤 {solicitante}
+            🏢 {entidade}
+            🏷 {categoria}
+            ✏️ {titulo}
+            🗒 {descricao}
+            🔗 {link}{numerodf}
+            """.replace("    ","")
+            try:
+                BotVar.BotTelegram.send_message(int(self.id_telegram),mensagem)
+                BotLog.imprimirLog("Adicionando o chamado "+str(numerodf)+" a lista de numeros de chamados que ja foram avisados hoje")
+                self.chamadosvencendoavisado.append(str(numerodf))
+                BotLog.imprimirLog("Imprimindo a lista de chamados vencendo ja avisado hoje")
+                BotLog.imprimirLog(str(self.chamadosvencendoavisado))
+            except Exception as e:
+                msg_erro = "Erro no envio da mensagem pelo telegram de ta vencendo, mensagem de erro: "+str(e)
+                BotLog.imprimirLog(msg_erro)
 
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################")
     def chamadosPendente(self):
@@ -954,14 +1020,14 @@ bot = GLPI()
 
 
 # BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"] = '452405307'
+# BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_iniciofim","VALOR"] = '452405307'
 # bot.id_telegram = '452405307'
 # bot.tempo = 5
 # bot.chamadosVencendo()
 
 
 
-
-   
+BotLog.InicioFim("InicioExecucao")
 teste = datetime.datetime.now()
 bot.horariotermino = bot.horariotermino + timedelta(days=1)
 while bot.horariotermino>=datetime.datetime.now():
@@ -991,6 +1057,8 @@ while bot.horariotermino>=datetime.datetime.now():
         if bot.conterro > 2:
             BotVar.BotTelegram.send_message(int(BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"]),msg_erro)
     bot.relogio_timer(bot.tempo)
+    BotLog.imprimirLog("Data e hora configurardo para finalizar o Celim: "+bot.horariotermino.strftime('%d-%m-%Y %H:%M'))
+    BotLog.imprimirLog('Data e hora atual: '+datetime.datetime.now().strftime('%d-%m-%Y %H:%M'))
     
 BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 # bot.InicioFim("FimExecucao")
