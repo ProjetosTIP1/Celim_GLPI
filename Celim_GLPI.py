@@ -87,7 +87,7 @@ class GLPI:
 
         self.chamadosvencendoavisado = [] # lista com chamados vencendo que ja foi avisado
         self.limiteaguardarelemento = 0 # contador limitar as tentativas de procurar um elemento html
-        self.tempo = 300 # tempo em segundos entre cada verificação
+        self.tempo = int(BotVar.dfparametros.query('NOME=="tempo_verificar"')['VALOR'].iloc[0]) # tempo em segundos entre cada verificação
         self.limiteaguardartitulo = 0
         self.limiteaguardartitulomaximo = 60
         self.conterro = 0 # contador para mandar mensagem somente se o erro acontecer mais de duas vezes seguida
