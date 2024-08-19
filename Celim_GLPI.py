@@ -13,6 +13,9 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
 import subprocess # executar exe, abrir programas e finalizar tarefas com o call
 
+import re
+from html import unescape
+
 
 
 
@@ -36,6 +39,7 @@ from GerarLog import Gerarlog
 from GerenciadorTarefas import GerenciadorTarefas
 from FinalizarExecucao import FinalizarExecucao
 from GerenciadorJanelas import GerenciadorJanelas
+from ConectarBd import ConectarBd
 
 
 BotChave = GerarChave()
@@ -51,6 +55,8 @@ BotLog = Gerarlog(BotVar)
 BotTarefas = GerenciadorTarefas(BotVar,BotLog)
 BotFinalizar = FinalizarExecucao(BotVar,BotLog,BotTarefas)
 BotGerenciadorJanelas = GerenciadorJanelas(BotVar=BotVar,BotLog=BotLog)
+BotConectarBd = ConectarBd(BotVar,BotLog)
+
 
 
 
@@ -91,7 +97,18 @@ class GLPI:
         self.limiteaguardartitulo = 0
         self.limiteaguardartitulomaximo = 60
         self.conterro = 0 # contador para mandar mensagem somente se o erro acontecer mais de duas vezes seguida
-        self.enviar_pendentes = True
+
+        sql = "SELECT ID_CHAMADO FROM tb015_glpi WHERE TIPO_AVISO = 'VENCIDO' AND DTCRIACAO > CURDATE()"
+        dfpendente = BotConectarBd.getSql(sql)
+        self.chamadosvencendoavisado = dfpendente['ID_CHAMADO'].tolist()
+        self.chamadosvencendoavisado = [str(i) for i in self.chamadosvencendoavisado]
+
+        sql = "SELECT * FROM tb015_glpi WHERE TIPO_AVISO = 'PENDENTE' AND DTCRIACAO > CURDATE()"
+        dfpendente = BotConectarBd.getSql(sql)
+        if len(dfpendente.index)>0:
+            self.enviar_pendentes = False
+        else:
+            self.enviar_pendentes = True
     def relogio_timer(self,tempo):
         BotLog.imprimirLog("########################################################### INICIANDO MODULO RELOGIO_TIMER ###########################################################")
         for i in range(tempo, 0, -1):
@@ -165,24 +182,58 @@ class GLPI:
         self.limiteaguardartitulo+=1
         if bot.esperarTitulo(titulo):
             return True
-    def limparDescricao(self,descricao):
-        x = descricao.find('&#60;')
-        if x == -1:
-            return descricao
-        parte1 = descricao[:x]
-        parte2 = descricao[x:]
-        descricao = parte1+' '+parte2
-        x+=1
-        if x > 0:
-            y = descricao.find('&#62;')+5
-            parte1 = descricao[:y]
-            parte2 = descricao[y:]
+    def limparDescricao1(self,descricao):
+        limite_string = 50
+        tamanho_string = len(descricao)
+        def limpar(descricao):
+            x = descricao.find('&#60;')
+            if x == -1:
+                return descricao
+            parte1 = descricao[:x]
+            parte2 = descricao[x+5:]
             descricao = parte1+' '+parte2
-            y+=1
-            if y>x:
-                descricao_limpa = descricao[:x]+descricao[y:]
-                descricao_limpa = bot.limparDescricao(descricao_limpa)
-                return descricao_limpa
+            x+=1
+            if x > 0:
+                y = descricao.find('&#62;')+5
+                parte1 = descricao[:y-5]
+                parte2 = descricao[y:]
+                descricao = parte1+' '+parte2
+                y+=1
+                if y>x:
+                    descricao_limpa = descricao[:x]+descricao[y:]
+                    descricao_limpa = limpar(descricao_limpa)
+                    return descricao_limpa
+                else:
+                    return descricao
+        if tamanho_string<limite_string:
+            descricao = limpar(descricao)
+            return descricao
+        else:
+            cont = 0
+            descricao_limpa = ''
+            while cont < tamanho_string:
+                retorno_descricao = limpar(descricao[cont:limite_string])
+                cont = limite_string
+                limite_string = limite_string + limite_string
+                descricao_limpa = descricao_limpa + retorno_descricao
+            return descricao_limpa
+    def limparDescricao(self,descricao):
+
+        # Desconvertendo entidades HTML
+        descricao = unescape(descricao)
+        
+        # Removendo tags HTML
+        descricao = re.sub(r'<.*?>', '', descricao)
+        
+        # Removendo espaços extras e novas linhas
+        descricao = re.sub(r'\s+', ' ', descricao).strip()
+
+
+        strings_remover = ['p&#60;','p&#62;','&#60;','&#62;','\\xa0']
+        for x in strings_remover:
+            descricao = descricao.replace(x,'')
+        return descricao
+
     def tempoComercial(self,data_inicio_str,data_fim_str = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")):
         # BotLog.imprimirLog("########################################################### INICIANDO MODULO TEMPO COMERCIAL ###########################################################")
         # Lendo a tabela de feriados
@@ -782,7 +833,10 @@ class GLPI:
             try:
                 BotVar.BotTelegram.send_message(int(self.id_telegram),mensagem)
                 BotLog.imprimirLog("Adicionando o chamado "+str(numerodf)+" a lista de numeros de chamados que ja foram avisados hoje")
+
                 self.chamadosvencendoavisado.append(str(numerodf))
+                BotConectarBd.insertTabela('tb015_glpi',{'ID_CHAMADO':str(numerodf),'TIPO_AVISO':'VENCIDO'})
+
                 BotLog.imprimirLog("Imprimindo a lista de chamados vencendo ja avisado hoje")
                 BotLog.imprimirLog(str(self.chamadosvencendoavisado))
             except Exception as e:
@@ -896,7 +950,10 @@ class GLPI:
             try:
                 BotVar.BotTelegram.send_message(int(self.id_telegram),mensagem)
                 BotLog.imprimirLog("Adicionando o chamado "+str(numerodf)+" a lista de numeros de chamados que ja foram avisados hoje")
+
                 self.chamadosvencendoavisado.append(str(numerodf))
+                BotConectarBd.insertTabela('tb015_glpi',{'ID_CHAMADO':str(numerodf),'TIPO_AVISO':'VENCIDO'})
+
                 BotLog.imprimirLog("Imprimindo a lista de chamados vencendo ja avisado hoje")
                 BotLog.imprimirLog(str(self.chamadosvencendoavisado))
             except Exception as e:
@@ -1009,11 +1066,13 @@ class GLPI:
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq Excel*"])
         subprocess.call(["taskkill", "/S", 'localhost',  "/FI", "IMAGENAME eq mspaint*"])
         BotVar.BotTelegram.send_photo(int(bot.id_telegram),open(nome_print,'rb'))
+
         self.enviar_pendentes = False
+        BotConectarBd.insertTabela('tb015_glpi',{'ID_CHAMADO':'0','TIPO_AVISO':'PENDENTE'})
+
         BotLog.imprimirLog("########################################################### FINALIZANDO MODULO CHAMADOS PENDENTES ###########################################################")
        
 bot = GLPI()
-
 
 
 
