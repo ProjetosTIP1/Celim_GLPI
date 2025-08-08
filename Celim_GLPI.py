@@ -1010,7 +1010,8 @@ class GLPI:
 
         nome_arquivo = 'dfchamados_pendentes_'+datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S")
         BotLog.gerarExcel(dfchamadospendente,nome_arquivo)
-        caminho_arquivo = r"log\\log"+BotLog.nomedir+"\\dataframe\\"+nome_arquivo+'_'+str(BotLog.contexcel)+".xlsx"
+        # caminho_arquivo = r"log\\log"+BotLog.nomedir+"\\dataframe\\"+nome_arquivo+'_'+str(BotLog.contexcel)+".xlsx"
+        caminho_arquivo = BotLog.path_log +"\\dataframe\\"+nome_arquivo+'_'+str(BotLog.contexcel)+".xlsx"
 
         BotLog.imprimirLog("Mudando o status para executando")
         BotTarefas.MudarStatus("Executando")
@@ -1056,7 +1057,8 @@ class GLPI:
             BotGerenciadorJanelas.esperarTitulo(0,30,'Save As',2)
 
         time.sleep(4)
-        nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
+        # nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
+        nome_print = BotLog.path_log +r"\print\print"+str(BotLog.contprint)+'.jpg'
         BotLog.contprint+=1
         pyautogui.write(nome_print)
 
