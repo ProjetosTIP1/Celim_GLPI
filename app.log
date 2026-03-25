@@ -1,0 +1,11 @@
+2026-03-19 10:23:19,251 - root - 17596 - DEBUG - This is a debug message
+2026-03-19 10:23:19,251 - root - 17596 - INFO - This is an info message
+2026-03-19 10:23:19,251 - root - 17596 - WARNING - This is a warning message
+2026-03-19 10:23:19,251 - root - 17596 - ERROR - This is an error message
+2026-03-19 10:23:19,251 - root - 17596 - CRITICAL - This is a critical message
+2026-03-19 10:23:19,866 - urllib3.connectionpool - 17596 - DEBUG - Starting new HTTPS connection (1): api.telegram.org:443
+2026-03-19 10:23:20,919 - urllib3.connectionpool - 17596 - DEBUG - https://api.telegram.org:443 "POST /bot5013593683:AAGI8V25Moks8raqa8O1VqEgkqPXYmaDyAA/sendMessage?chat_id=-1001712871570&text=%F0%9F%8F%81+Glpi HTTP/1.1" 200 249
+2026-03-19 10:23:31,401 - urllib3.connectionpool - 17596 - DEBUG - https://api.telegram.org:443 "POST /bot5013593683:AAGI8V25Moks8raqa8O1VqEgkqPXYmaDyAA/sendMessage?chat_id=-1001712871570&text=%F0%9F%9F%A2+Glpi HTTP/1.1" 200 249
+2026-03-19 10:23:32,019 - urllib3.connectionpool - 17596 - DEBUG - https://api.telegram.org:443 "POST /bot5013593683:AAGI8V25Moks8raqa8O1VqEgkqPXYmaDyAA/sendMessage?chat_id=-1001712871570&text=%F0%9F%8F%81+Glpi HTTP/1.1" 200 249
+2026-03-19 10:23:34,861 - urllib3.connectionpool - 17596 - DEBUG - https://api.telegram.org:443 "POST /bot5013593683:AAGI8V25Moks8raqa8O1VqEgkqPXYmaDyAA/sendMessage?chat_id=-1001712871570&text=%F0%9F%8F%81+Glpi HTTP/1.1" 200 249
+2026-03-19 10:23:36,045 - urllib3.connectionpool - 17596 - DEBUG - https://api.telegram.org:443 "POST /bot5013593683:AAGI8V25Moks8raqa8O1VqEgkqPXYmaDyAA/sendMessage?chat_id=-1001712871570&text=%F0%9F%8F%81+Glpi HTTP/1.1" 200 249
