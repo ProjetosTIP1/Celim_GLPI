@@ -411,6 +411,10 @@ class GLPI:
         
                 
         conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql,db='glpi') #Criando a conexão
+        # conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql) #Criando a conexão
+        # cur = conMySQLGLPI.cursor()
+        # cur.execute("USE glpi;")
+        
         dfchamados= pd.read_sql_query(sql_glpi,conMySQLGLPI)
         BotLog.gerarExcel(dfchamados,'dfchamadosnovos'+datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S"))
 
