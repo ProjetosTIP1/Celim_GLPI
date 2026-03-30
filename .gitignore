@@ -9,3 +9,5 @@
 Celim_GLPI_Alertas.spec
 chromedriver.exe
 app.log
+.libs
+/libs
