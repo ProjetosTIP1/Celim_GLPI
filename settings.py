@@ -1,4 +1,6 @@
 import os
+import sys
+
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,6 +20,8 @@ class Settings(BaseSettings):
         "C:\\Program Files\\Microsoft Office\\Office15\\EXCEL.EXE",
     )
     CHAVE: str = os.getenv("CHAVE", "")
+    EXTERNAL_LIBS_PATH: str = os.getenv("EXTERNAL_LIBS_PATH", "")
+
 
     model_config = SettingsConfigDict(
         env_file=ENV_PATH,
@@ -28,6 +32,12 @@ class Settings(BaseSettings):
 
 try:
     settings = Settings()
+    if settings.EXTERNAL_LIBS_PATH:
+        if os.path.exists(settings.EXTERNAL_LIBS_PATH):
+            sys.path.insert(0, settings.EXTERNAL_LIBS_PATH)
+        else:
+            print(f"Warning: EXTERNAL_LIBS_PATH '{settings.EXTERNAL_LIBS_PATH}' does not exist.")
 except Exception as e:
+
     print(f"Error loading settings: {e}")
     raise

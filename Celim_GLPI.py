@@ -1,17 +1,18 @@
+import re
+import time
 import datetime
-from datetime import timedelta
 import MySQLdb
 import pandas as pd
-import time
 import pyautogui
+import subprocess
+
+from datetime import timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
-import subprocess  # executar exe, abrir programas e finalizar tarefas com o call
-
-import re
 from html import unescape
 
+from settings import settings
 from libs.GerarChave import GerarChave
 from libs.GerarVar import GerarVar
 from libs.GerarLog import Gerarlog
@@ -19,7 +20,6 @@ from libs.GerenciadorTarefas import GerenciadorTarefas
 from libs.FinalizarExecucao import FinalizarExecucao
 from libs.GerenciadorJanelas import GerenciadorJanelas
 from libs.ConectarBd import ConectarBd
-from settings import settings
 
 
 BotChave = GerarChave()
