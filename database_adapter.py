@@ -98,7 +98,9 @@ class DatabaseManager:
                     )
                     time.sleep(delay)
                 else:
-                    print(f"Database execution failed on {self._key} after {retries} attempts.")
+                    print(
+                        f"Database execution failed on {self._key} after {retries} attempts."
+                    )
                     raise
 
     def insert_df(self, df: pd.DataFrame, table_name: str, if_exists: str = "append"):
