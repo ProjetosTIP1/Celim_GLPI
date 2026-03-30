@@ -1459,7 +1459,8 @@ try:
                 BotVar.BotTelegram.send_message(
                     int(
                         BotVar.dfparametros.loc[
-                            BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
+                            BotVar.dfparametros["NOME"] == "id_telegram_alertas",
+                            "VALOR",
                         ].iloc[0]
                     ),
                     msg_erro,
