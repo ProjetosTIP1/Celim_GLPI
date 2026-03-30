@@ -11,3 +11,5 @@ chromedriver.exe
 app.log
 .libs
 /libs
+.env
+*.pyc
