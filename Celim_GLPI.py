@@ -1314,11 +1314,9 @@ class GLPI:
         try:
             dfchamadospendente = db_glpi.get_df(sql)
         except Exception as e:
-            msg_erro = (
-                "Erro no envio da mensagem pelo telegram de ta vencendo, mensagem de erro: "
-                + str(e)
-            )
+            msg_erro = f"Erro ao buscar chamados pendentes no banco de dados GLPI: {e}"
             BotLog.imprimirLog(msg_erro)
+            return  # Saí do método se não conseguiu pegar os dados
 
         dfchamadospendente["Tempo_Pendente_Segundos_Atual"] = 0
         dfchamadospendente["Tempo_Pendente_Segundos_Total"] = 0
@@ -1411,51 +1409,35 @@ bot = GLPI()
 BotLog.InicioFim("InicioExecucao")
 teste = datetime.datetime.now()
 bot.horariotermino = bot.horariotermino + timedelta(days=1)
-while bot.horariotermino >= datetime.datetime.now():
-    if bot.enviar_pendentes:
-        try:  # chamados Pendentes
-            bot.chamadosPendente()
-            BotLog.imprimirLog("Mudando o status para Parado")
-            BotTarefas.MudarStatus("Parado")
+try:
+    while bot.horariotermino >= datetime.datetime.now():
+        if bot.enviar_pendentes:
+            try:  # chamados Pendentes
+                bot.chamadosPendente()
+                BotLog.imprimirLog("Mudando o status para Parado")
+                BotTarefas.MudarStatus("Parado")
+            except Exception as e:
+                BotLog.imprimirLog("Mudando o status para Parado")
+                BotTarefas.MudarStatus("Parado")
+                msg = f"Erro no modulo chamadosPendentes: {e}"
+                BotLog.imprimirLog(msg)
+                id_telegram: int = int(
+                    BotVar.dfparametros.loc[
+                        BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
+                    ].iloc[0]
+                )
+                BotVar.BotTelegram.send_message(
+                    id_telegram,
+                    msg,
+                )
+        try:
+            bot.novoChamado()
         except Exception as e:
-            BotLog.imprimirLog("Mudando o status para Parado")
-            BotTarefas.MudarStatus("Parado")
-            msg = f"Erro no modulo chamadosPendentes: {e}"
-            BotLog.imprimirLog(msg)
-            id_telegram: int = int(
-                BotVar.dfparametros.loc[
-                    BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
-                ].iloc[0]
+            msg_erro = (
+                "Erro no modulo que verifica novos chamados, mensagem de erro: "
+                + str(e)
             )
-            BotVar.BotTelegram.send_message(
-                id_telegram,
-                msg,
-            )
-    try:
-        bot.novoChamado()
-    except Exception as e:
-        msg_erro = (
-            "Erro no modulo que verifica novos chamados, mensagem de erro: " + str(e)
-        )
-        BotLog.imprimirLog(msg_erro)
-        BotVar.BotTelegram.send_message(
-            int(
-                BotVar.dfparametros.loc[
-                    BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
-                ].iloc[0]
-            ),
-            msg_erro,
-        )
-    try:
-        bot.chamadosVencendoWeb()
-    except Exception as e:
-        bot.conterro += 1
-        msg_erro = (
-            "Erro no modulo que verifica os chamados que estão vencendo, mensagem de erro: "
-            + str(e)
-        )
-        BotLog.imprimirLog(msg_erro)
-        if bot.conterro > 2:
+            BotLog.imprimirLog(msg_erro)
             BotVar.BotTelegram.send_message(
                 int(
                     BotVar.dfparametros.loc[
@@ -1464,15 +1446,35 @@ while bot.horariotermino >= datetime.datetime.now():
                 ),
                 msg_erro,
             )
-    bot.relogio_timer(bot.tempo)
-    BotLog.imprimirLog(
-        "Data e hora configurardo para finalizar o Celim: "
-        + bot.horariotermino.strftime("%d-%m-%Y %H:%M")
-    )
-    BotLog.imprimirLog(
-        "Data e hora atual: " + datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
-    )
-
-BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
+        try:
+            bot.chamadosVencendoWeb()
+        except Exception as e:
+            bot.conterro += 1
+            msg_erro = (
+                "Erro no modulo que verifica os chamados que estão vencendo, mensagem de erro: "
+                + str(e)
+            )
+            BotLog.imprimirLog(msg_erro)
+            if bot.conterro > 2:
+                BotVar.BotTelegram.send_message(
+                    int(
+                        BotVar.dfparametros.loc[
+                            BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
+                        ].iloc[0]
+                    ),
+                    msg_erro,
+                )
+        bot.relogio_timer(bot.tempo)
+        BotLog.imprimirLog(
+            "Data e hora configurardo para finalizar o Celim: "
+            + bot.horariotermino.strftime("%d-%m-%Y %H:%M")
+        )
+        BotLog.imprimirLog(
+            "Data e hora atual: " + datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
+        )
+finally:
+    BotLog.imprimirLog("Encerrando conexões com o banco de dados...")
+    DatabaseManager.dispose_all()
+    BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 # bot.InicioFim("FimExecucao")
 # BotFinalizar.finalizarExecucao("Finalizando execução com sucesso na ultima linha")

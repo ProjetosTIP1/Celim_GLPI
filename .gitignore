@@ -14,3 +14,4 @@ app.log
 .env
 *.pyc
 /chromedriver-win64
+playground.py
