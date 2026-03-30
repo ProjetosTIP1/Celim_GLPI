@@ -5,7 +5,6 @@ import datetime
 # import MySQLdb  -- Removed in favor of SQLAlchemy
 import pandas as pd
 import pyautogui
-import subprocess
 
 from datetime import timedelta
 from selenium import webdriver
@@ -13,6 +12,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
 from html import unescape
 from database_adapter import DatabaseManager
+from utils.table_renderer import save_df_as_image
 
 from settings import settings
 from libs.GerarChave import GerarChave
@@ -1378,56 +1378,19 @@ class GLPI:
         BotLog.imprimirLog("Verificando prioridade")
         BotTarefas.VerificaPrioridade()
 
-        # Comando para abrir o arquivo Excel com o aplicativo Excel
-        comando_excel = [self.caminho_excel, caminho_arquivo]
+        BotLog.imprimirLog(
+            f"Gerando imagem da tabela de chamados pendentes em: {caminho_arquivo.replace('.xlsx', '.png')}"
+        )
+        nome_print = caminho_arquivo.replace(".xlsx", ".png")
 
-        # Subprocesso para executar o comando
-        subprocess.Popen(comando_excel)
-
-        if not BotGerenciadorJanelas.esperarTitulo(0, 30, "dfchamados_pendentes", 2):
-            raise Exception("Erro ao abrir a planilha com os chamados pendentes")
-        BotGerenciadorJanelas.ativarTela("dfchamados_pendentes", 2)
-
-        time.sleep(10)
-        pyautogui.hotkey("ctrl", "t")
-        time.sleep(10)
-        pyautogui.hotkey("alt", "c", "o", "t")
-        time.sleep(10)
-        pyautogui.hotkey("ctrl", "c")
-        time.sleep(10)
-
-        paint = ["mspaint"]
-        subprocess.Popen(paint)
-
-        if not BotGerenciadorJanelas.esperarTitulo(0, 30, "Paint", 2):
-            raise Exception("Erro na hora de abrir o paint")
-
-        time.sleep(4)
-        pyautogui.hotkey("ctrl", "v")
-        time.sleep(4)
-
-        pyautogui.press("f12")
-        time.sleep(4)
-
-        self.limiteaguardartitulo = 0
-        self.limiteaguardartitulomaximo = 60
-        if self.sistema == "10":
-            BotGerenciadorJanelas.esperarTitulo(0, 30, "Salvar como", 2)
-        elif self.sistema == "11":
-            BotGerenciadorJanelas.esperarTitulo(0, 30, "Save As", 2)
-
-        time.sleep(4)
-        # nome_print = CaminhoProjeto+r"\log\log"+BotLog.nomedir+r"\print\print"+str(BotLog.contprint)+'.jpg'
-        nome_print = BotLog.path_log + r"\print\print" + str(BotLog.contprint) + ".jpg"
-        BotLog.contprint += 1
-        pyautogui.write(nome_print)
-
-        time.sleep(4)
-        pyautogui.hotkey("alt", "l")
-        time.sleep(4)
-        subprocess.call(["taskkill", "/S", "localhost", "/FI", "IMAGENAME eq Excel*"])
-        subprocess.call(["taskkill", "/S", "localhost", "/FI", "IMAGENAME eq mspaint*"])
-        BotVar.BotTelegram.send_photo(int(bot.id_telegram), open(nome_print, "rb"))
+        try:
+            save_df_as_image(dfchamadospendente, nome_print)
+            BotVar.BotTelegram.send_photo(int(bot.id_telegram), open(nome_print, "rb"))
+        except Exception as e:
+            BotLog.imprimirLog(f"Erro ao gerar ou enviar imagem da tabela: {e}")
+            BotVar.BotTelegram.send_message(
+                int(bot.id_telegram), f"Erro ao gerar imagem: {e}"
+            )
 
         self.enviar_pendentes = False
         db_rpa.insert_dict("tb015_glpi", {"ID_CHAMADO": "0", "TIPO_AVISO": "PENDENTE"})

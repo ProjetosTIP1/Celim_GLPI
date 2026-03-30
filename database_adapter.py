@@ -48,7 +48,7 @@ class DatabaseManager:
     def engine(self):
         if self._engine is None:
             raise RuntimeError(
-                f"DatabaseManager '{self._key}' not initialized. Call initialize() first."
+                f"DatabaseManager '{self}' not initialized. Call initialize() first."
             )
         return self._engine
 
