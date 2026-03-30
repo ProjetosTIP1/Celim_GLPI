@@ -1,7 +1,8 @@
 import re
 import time
 import datetime
-import MySQLdb
+
+# import MySQLdb  -- Removed in favor of SQLAlchemy
 import pandas as pd
 import pyautogui
 import subprocess
@@ -11,6 +12,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
 from html import unescape
+from database_adapter import DatabaseManager
 
 from settings import settings
 from libs.GerarChave import GerarChave
@@ -26,6 +28,24 @@ BotChave = GerarChave()
 BotVar = GerarVar(BotChave)
 BotVar.chaveBD = BotChave.gerarChave(settings.CHAVE)
 BotVar.getParametros(15)  # 1 para falar o id do rpa para pegar os parametros
+
+# Initialize Database Managers
+db_rpa = DatabaseManager("rpa")
+db_rpa.initialize(
+    user=BotVar.usermysql,
+    password=BotVar.senhamysql,
+    host=BotVar.serverMySQL,
+    database=BotVar.bancomysql,
+)
+
+db_glpi = DatabaseManager("glpi")
+db_glpi.initialize(
+    user=BotVar.usermysql,
+    password=BotVar.senhamysql,
+    host=BotVar.serverMySQL,
+    database="glpi",
+)
+
 # BotAreaTransferencia = AreaTransferencia()
 BotLog = Gerarlog(BotVar)
 
@@ -75,7 +95,7 @@ class GLPI:
         # self.id_telegram = '-940535548'
 
         with open(
-            "Config\horatermino.txt",
+            r"Config\horatermino.txt",
             "r",
         ) as arquivo:
             self.horariotermino = arquivo.read()
@@ -88,14 +108,14 @@ class GLPI:
         )
 
         with open(
-            "Config\caminho_excel.txt",
+            r"Config\caminho_excel.txt",
             "r",
         ) as arquivo:
             self.caminho_excel = arquivo.read()
         self.caminho_excel = str(self.caminho_excel)
 
         with open(
-            "Config\sistema.txt",
+            r"Config\sistema.txt",
             "r",
         ) as arquivo:
             self.sistema = arquivo.read()
@@ -113,12 +133,12 @@ class GLPI:
         self.conterro = 0  # contador para mandar mensagem somente se o erro acontecer mais de duas vezes seguida
 
         sql = "SELECT ID_CHAMADO FROM tb015_glpi WHERE TIPO_AVISO = 'VENCIDO' AND DTCRIACAO > CURDATE()"
-        dfpendente = BotConectarBd.getSql(sql)
+        dfpendente = db_rpa.get_df(sql)
         self.chamadosvencendoavisado = dfpendente["ID_CHAMADO"].tolist()
         self.chamadosvencendoavisado = [str(i) for i in self.chamadosvencendoavisado]
 
         sql = "SELECT * FROM tb015_glpi WHERE TIPO_AVISO = 'PENDENTE' AND DTCRIACAO > CURDATE()"
-        dfpendente = BotConectarBd.getSql(sql)
+        dfpendente = db_rpa.get_df(sql)
         if len(dfpendente.index) > 0:
             self.enviar_pendentes = False
         else:
@@ -272,18 +292,12 @@ class GLPI:
     ):
         # BotLog.imprimirLog("########################################################### INICIANDO MODULO TEMPO COMERCIAL ###########################################################")
         # Lendo a tabela de feriados
-        sql_holidays = f"""
+        sql_holidays = """
             SELECT id, name, begin_date, end_date, is_perpetual
             FROM glpi_holidays
             ORDER BY id
             """
-        conMySQLholidays = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db="glpi",
-        )  # Criando a conexão
-        dfholidays = pd.read_sql_query(sql_holidays, conMySQLholidays)
+        dfholidays = db_glpi.get_df(sql_holidays)
         BotLog.gerarExcel(
             dfholidays,
             "dfholidays" + datetime.datetime.today().strftime("%Y-%m-%d_%H-%M-%S"),
@@ -345,20 +359,9 @@ class GLPI:
             data_inicio_str, "%d-%m-%Y %H:%M:%S"
         )
         data_fim_dt = datetime.datetime.strptime(data_fim_str, "%d-%m-%Y %H:%M:%S")
-        date = data_inicio_dt.date()
-        hour = data_inicio_dt.time()
         tempo_segundos = 0
 
-        # hoje = datetime.datetime.now()
-        # dia_semana = hoje
-        # for x in range(10):
-        #     dia_semana = hoje.weekday()
-        #     hoje = hoje + datetime.timedelta(days=1)
-        horas = data_inicio_dt.hour
-
-        hoje_data = datetime.datetime.now().date()
         while data_inicio_dt.date() <= data_fim_dt.date():
-            dia_semana = data_inicio_dt.weekday()
             if (
                 data_inicio_dt.weekday() == 5 or data_inicio_dt.weekday() == 6
             ):  # pular um dia se for final de semana
@@ -465,13 +468,7 @@ class GLPI:
         )
 
         sql_ultimo = 'SELECT max(id_chamado) ULTIMO_CHAMADO FROM tb015_glpi WHERE TIPO_AVISO = "NOVO"'
-        conMySQLRPA = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db=BotVar.bancomysql,
-        )  # Criando a conexão
-        dfultimochamado = pd.read_sql_query(sql_ultimo, conMySQLRPA)
+        dfultimochamado = db_rpa.get_df(sql_ultimo)
         id = dfultimochamado["ULTIMO_CHAMADO"].iloc[0]
 
         BotLog.gerarExcel(
@@ -506,17 +503,7 @@ class GLPI:
                 WHERE t.status = 1 and t.id > {id} ORDER BY t.id
                     """
 
-        conMySQLGLPI = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db="glpi",
-        )  # Criando a conexão
-        # conMySQLGLPI = MySQLdb.connect(host=BotVar.serverMySQL,user=BotVar.usermysql,passwd=BotVar.senhamysql) #Criando a conexão
-        # cur = conMySQLGLPI.cursor()
-        # cur.execute("USE glpi;")
-
-        dfchamados = pd.read_sql_query(sql_glpi, conMySQLGLPI)
+        dfchamados = db_glpi.get_df(sql_glpi)
         BotLog.gerarExcel(
             dfchamados,
             "dfchamadosnovos" + datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S"),
@@ -568,38 +555,15 @@ class GLPI:
                 )
                 BotLog.imprimirLog(msg_erro)
 
-            cur = conMySQLRPA.cursor()
-            # sql = "INSERT INTO tb015_glpi (ID_CHAMADO)VALUES (%s)"
-            numero = str(numero)
-            # val = (numero)
-            sql = f"INSERT INTO tb015_glpi (ID_CHAMADO)VALUES ({numero})"
+            sql = "INSERT INTO tb015_glpi (ID_CHAMADO) VALUES (:numero)"
             try:
-                # cur.execute(sql, val)
-                cur.execute(sql)
+                db_rpa.execute(sql, {"numero": str(numero)})
             except Exception as e:
                 msg_erro = "Erro no insert do servidor MySQL, mensagem de erro: " + str(
                     e
                 )
                 BotLog.imprimirLog(msg_erro)
                 BotVar.BotTelegram.send_message(int(self.id_telegram), mensagem)
-            try:
-                conMySQLRPA.commit()
-            except Exception as e:
-                msg_erro = (
-                    "Erro no commit ou close no servidor MySQL, mensagem de erro: "
-                    + str(e)
-                )
-                BotLog.imprimirLog(msg_erro)
-                BotVar.BotTelegram.send_message(int(self.id_telegram), mensagem)
-        try:
-            conMySQLRPA.close()
-        except Exception as e:
-            msg_erro = (
-                "Erro na hora de fechar a conexão do servidor MySQL, mensagem de erro: "
-                + str(e)
-            )
-            BotLog.imprimirLog(msg_erro)
-            BotVar.BotTelegram.send_message(int(self.id_telegram), mensagem)
 
         BotLog.imprimirLog(
             "########################################################### FINALIZANDO MODULO NOVO CHAMADO ###########################################################"
@@ -610,7 +574,7 @@ class GLPI:
             "########################################################### INICIANDO MODULO CHAMADOS VENCENDO ###########################################################"
         )
 
-        sql_glpi = f"""
+        sql_glpi = """
             SELECT  t.id Numero, 
                     u1.name Solicitante, 
                     e.name Entidade, 
@@ -633,13 +597,7 @@ class GLPI:
             -- WHERE t.status in (1,2)
             ORDER BY t.id
                 """
-        conMySQLGLPI = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db="glpi",
-        )  # Criando a conexão
-        dfchamados = pd.read_sql_query(sql_glpi, conMySQLGLPI)
+        dfchamados = db_glpi.get_df(sql_glpi)
         BotLog.gerarExcel(
             dfchamados,
             "dfchamados_ematendimento_novos"
@@ -743,7 +701,7 @@ class GLPI:
         # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[6]/td[2]
         # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[7]/td[2]
         # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[1]/td[2]/span
-        elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[3]/div/p[1]"  # Verificando se possui chamados na tela
+        elemento = "/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[3]/div/p[1]"  # Verificando se possui chamados na tela
         try:
             total_chamados = self.driver.find_element("xpath", elemento).get_attribute(
                 "innerHTML"
@@ -751,12 +709,13 @@ class GLPI:
             x = total_chamados.find("de")
             y = total_chamados.find("linhas")
             quant_chamados = int(total_chamados[x + 3 : y - 1])
-        except:
+        except Exception as e:
             BotLog.imprimirLog("Não possui chamados abertos ou em atendimentos")
+            BotLog.imprimirLog(f"Erro: {e}")
             time.sleep(30)
             self.driver.quit()
             return
-        elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[1]/td[5]/span/i"  #
+        elemento = "/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[1]/td[5]/span/i"  #
         esperarElemento(elemento)
         coluna = 1
         numero_coluna_ta = 0
@@ -768,8 +727,9 @@ class GLPI:
                 nome_coluna = self.driver.find_element("xpath", elemento).get_attribute(
                     "innerHTML"
                 )
-            except:
+            except Exception as e:
                 BotLog.imprimirLog("Não conseguiu encontrar as colunas de TA e TS")
+                BotLog.imprimirLog(f"Erro: {e}")
                 time.sleep(30)
                 self.driver.quit()
                 return
@@ -825,8 +785,9 @@ class GLPI:
                     continue
                 # if numero == 115 or numero == '115':
                 #     print("")
-            except:
+            except Exception as e:
                 BotLog.imprimirLog("Não conseguiu pegar o TA do chamado " + str(numero))
+                BotLog.imprimirLog(f"Erro: {e}")
                 time.sleep(30)
                 linha += 1
                 continue
@@ -852,24 +813,20 @@ class GLPI:
                     progresso_sla_ta = self.driver.find_element(
                         "xpath", elemento
                     ).get_attribute("aria-valuenow")
-                except:
+                except Exception as e:
                     BotLog.imprimirLog(
                         "Não conseguiu pegar o TA do chamado " + str(numero)
                     )
-                    # time.sleep(30)
-                    # linha+=1
-                    # continue
+                    BotLog.imprimirLog(f"Erro: {e}")
 
             elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[{linha}]/td[{numero_coluna_ts}]/div/div"
             try:
                 progresso_sla_ts = self.driver.find_element(
                     "xpath", elemento
                 ).get_attribute("aria-valuenow")
-            except:
+            except Exception as e:
                 BotLog.imprimirLog("Não conseguiu pegar o TS do chamado " + str(numero))
-                # time.sleep(30)
-                # linha+=1
-                # continue
+                BotLog.imprimirLog(f"Erro: {e}")
             BotLog.imprimirLog(
                 "Chamado: "
                 + str(numero)
@@ -1131,7 +1088,7 @@ class GLPI:
                 )
 
                 self.chamadosvencendoavisado.append(str(numerodf))
-                BotConectarBd.insertTabela(
+                db_rpa.insert_dict(
                     "tb015_glpi", {"ID_CHAMADO": str(numerodf), "TIPO_AVISO": "VENCIDO"}
                 )
 
@@ -1153,7 +1110,7 @@ class GLPI:
         )
 
     def chamadosVencendo(self):
-        sql_glpi = f"""
+        sql_glpi = """
                     SELECT  t.id Numero,
                             u1.name Solicitante, 
                             e.name Entidade, 
@@ -1183,13 +1140,7 @@ class GLPI:
                     GROUP BY t.id -- Agrupando pelo numero porque tem um chamado de numero 173 duplicado poque foi atribuido a dois tecnicos
                     ORDER BY t.id
         """
-        conMySQLGLPI = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db="glpi",
-        )  # Criando a conexão
-        dfchamadosvencendo = pd.read_sql_query(sql_glpi, conMySQLGLPI)
+        dfchamadosvencendo = db_glpi.get_df(sql_glpi)
         dfchamadosvencendo["TA_S"] = (
             0  # Iniciando a coluna para armazenar o TA do chamado em segundos
         )
@@ -1321,7 +1272,7 @@ class GLPI:
                 )
 
                 self.chamadosvencendoavisado.append(str(numerodf))
-                BotConectarBd.insertTabela(
+                db_rpa.insert_dict(
                     "tb015_glpi", {"ID_CHAMADO": str(numerodf), "TIPO_AVISO": "VENCIDO"}
                 )
 
@@ -1361,17 +1312,11 @@ class GLPI:
                 GROUP BY t.id -- Agrupando pelo numero porque tem um chamado de numero 173 duplicado poque foi atribuido a dois tecnicos
                 ORDER BY t.begin_waiting_date
             """
-        conMySQLGLPI = MySQLdb.connect(
-            host=BotVar.serverMySQL,
-            user=BotVar.usermysql,
-            passwd=BotVar.senhamysql,
-            db="glpi",
-        )  # Criando a conexão
-        dfchamadospendente = pd.read_sql_query(sql, conMySQLGLPI)
+        dfchamadospendente = db_glpi.get_df(sql)
 
         dfchamadospendente["Tempo_Pendente_Segundos_Atual"] = 0
         dfchamadospendente["Tempo_Pendente_Segundos_Total"] = 0
-        dfchamadospendente["Horas_Pendente"] = 0
+        dfchamadospendente["Horas_Pendente"] = ""
         total_chamados_pendentes = len(dfchamadospendente.index)
         for x, data in enumerate(dfchamadospendente["Inicio_Espera"]):
             # data = dfchamadospendente['Inicio_Espera'].iloc[0]
@@ -1485,9 +1430,7 @@ class GLPI:
         BotVar.BotTelegram.send_photo(int(bot.id_telegram), open(nome_print, "rb"))
 
         self.enviar_pendentes = False
-        BotConectarBd.insertTabela(
-            "tb015_glpi", {"ID_CHAMADO": "0", "TIPO_AVISO": "PENDENTE"}
-        )
+        db_rpa.insert_dict("tb015_glpi", {"ID_CHAMADO": "0", "TIPO_AVISO": "PENDENTE"})
 
         BotLog.imprimirLog(
             "########################################################### FINALIZANDO MODULO CHAMADOS PENDENTES ###########################################################"
@@ -1518,12 +1461,13 @@ while bot.horariotermino >= datetime.datetime.now():
             BotTarefas.MudarStatus("Parado")
             msg = f"Erro no modulo chamadosPendentes: {e}"
             BotLog.imprimirLog(msg)
+            id_telegram: int = int(
+                BotVar.dfparametros.loc[
+                    BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
+                ].iloc[0]
+            )
             BotVar.BotTelegram.send_message(
-                int(
-                    BotVar.dfparametros.loc[
-                        BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
-                    ]
-                ),
+                id_telegram,
                 msg,
             )
     try:
@@ -1537,7 +1481,7 @@ while bot.horariotermino >= datetime.datetime.now():
             int(
                 BotVar.dfparametros.loc[
                     BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
-                ]
+                ].iloc[0]
             ),
             msg_erro,
         )
@@ -1555,7 +1499,7 @@ while bot.horariotermino >= datetime.datetime.now():
                 int(
                     BotVar.dfparametros.loc[
                         BotVar.dfparametros["NOME"] == "id_telegram_alertas", "VALOR"
-                    ]
+                    ].iloc[0]
                 ),
                 msg_erro,
             )

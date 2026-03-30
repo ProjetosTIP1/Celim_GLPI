@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     CHAVE: str = os.getenv("CHAVE", "")
     EXTERNAL_LIBS_PATH: str = os.getenv("EXTERNAL_LIBS_PATH", "")
 
-
     model_config = SettingsConfigDict(
         env_file=ENV_PATH,
         env_file_encoding="utf-8",
@@ -36,8 +35,9 @@ try:
         if os.path.exists(settings.EXTERNAL_LIBS_PATH):
             sys.path.insert(0, settings.EXTERNAL_LIBS_PATH)
         else:
-            print(f"Warning: EXTERNAL_LIBS_PATH '{settings.EXTERNAL_LIBS_PATH}' does not exist.")
+            print(
+                f"Warning: EXTERNAL_LIBS_PATH '{settings.EXTERNAL_LIBS_PATH}' does not exist."
+            )
 except Exception as e:
-
     print(f"Error loading settings: {e}")
     raise
