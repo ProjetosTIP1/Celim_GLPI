@@ -13,3 +13,4 @@ app.log
 /libs
 .env
 *.pyc
+/chromedriver-win64

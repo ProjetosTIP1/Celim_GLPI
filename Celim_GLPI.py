@@ -1,8 +1,6 @@
 import re
 import time
 import datetime
-
-# import MySQLdb  -- Removed in favor of SQLAlchemy
 import pandas as pd
 import pyautogui
 
@@ -11,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
 from html import unescape
+from webdriver_manager.chrome import ChromeDriverManager
 from database_adapter import DatabaseManager
 from utils.table_renderer import save_df_as_image
 
@@ -623,7 +622,7 @@ class GLPI:
         options.add_argument(
             "--disable-notifications"
         )  # Desabilitar notificações do navegador
-        service = Service(executable_path=r"chromedriver.exe")
+        service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=options)
         BotLog.imprimirLog("Iniciando o Navegador")
         # self.driver = webdriver.Chrome(r"C:\Users\raisson.charles\Desktop\Python\RPA\02_essencial\chromedriver.exe", options=options)
@@ -1312,7 +1311,14 @@ class GLPI:
                 GROUP BY t.id -- Agrupando pelo numero porque tem um chamado de numero 173 duplicado poque foi atribuido a dois tecnicos
                 ORDER BY t.begin_waiting_date
             """
-        dfchamadospendente = db_glpi.get_df(sql)
+        try:
+            dfchamadospendente = db_glpi.get_df(sql)
+        except Exception as e:
+            msg_erro = (
+                "Erro no envio da mensagem pelo telegram de ta vencendo, mensagem de erro: "
+                + str(e)
+            )
+            BotLog.imprimirLog(msg_erro)
 
         dfchamadospendente["Tempo_Pendente_Segundos_Atual"] = 0
         dfchamadospendente["Tempo_Pendente_Segundos_Total"] = 0
@@ -1401,14 +1407,6 @@ class GLPI:
 
 
 bot = GLPI()
-
-
-# BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_alertas","VALOR"] = '452405307'
-# BotVar.dfparametros.loc[BotVar.dfparametros['NOME']=="id_telegram_iniciofim","VALOR"] = '452405307'
-# bot.id_telegram = '452405307'
-# bot.tempo = 5
-# bot.chamadosVencendo()
-
 
 BotLog.InicioFim("InicioExecucao")
 teste = datetime.datetime.now()
