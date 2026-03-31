@@ -16,6 +16,9 @@ class WebDriverFactory:
         options.add_argument("lang=pt")
         if headless:
             options.add_argument("--headless=new")
+            options.add_argument("--window-size=1920,1080")
+        else:
+            options.add_argument("--start-maximized")
         options.add_argument("--disable-notifications")
 
         # Path to local chromedriver (specifically for version 146.0.7680.165)
