@@ -5,13 +5,10 @@ import pandas as pd
 import pyautogui
 
 from datetime import timedelta
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import Select
 from html import unescape
-from webdriver_manager.chrome import ChromeDriverManager
 from database_adapter import DatabaseManager
 from utils.table_renderer import save_df_as_image
+from utils.glpi_scraper import GLPIScraper
 
 from settings import settings
 from libs.GerarChave import GerarChave
@@ -603,506 +600,154 @@ class GLPI:
             + datetime.datetime.today().strftime("%Y-%m-%d_%H.%M.%S"),
         )
 
-        def esperarElemento(elemento):
-            while self.limiteaguardarelemento < 60:
-                time.sleep(1)
-                BotLog.imprimirLog("Aguardando o elemento " + str(elemento))
-                try:
-                    self.driver.find_element("xpath", elemento)
-                except Exception as e:
-                    BotLog.imprimirLog(str(e))
-                    self.limiteaguardarelemento += 1
-                    continue
-                self.limiteaguardarelemento = 0
-                return True
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("lang=pt")
-        options.add_argument("--headless=new")  # para abrir no navegador no back end
-        options.add_argument(
-            "--disable-notifications"
-        )  # Desabilitar notificações do navegador
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=options)
-        BotLog.imprimirLog("Iniciando o Navegador")
-        # self.driver = webdriver.Chrome(r"C:\Users\raisson.charles\Desktop\Python\RPA\02_essencial\chromedriver.exe", options=options)
-        # self.driver = webdriver.Chrome(options=options,r"chromedriver.exe")
-        url = "http://chamado.pedreiraumvalemix.com.br/"
-        # url = 'http://localhost/glpi/'
-        self.driver.get(url)
-        # self.driver.maximize_window()
-        # self.driver.minimize_window()
-        BotLog.imprimirLog("Abrindo o GLPI")
-
-        elemento = '//*[@id="login_name"]'  # //*[@id="login_name"]
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        self.driver.find_element("xpath", elemento).send_keys(
-            BotVar.dfparametros.query('NOME=="Usuario_Rede"')["VALOR"].iloc[0]
-        )
-        # self.driver.find_element("xpath",elemento).click()
-
-        elemento = (
-            "/html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[3]/input"  #
-        )
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        self.driver.find_element("xpath", elemento).send_keys(
-            BotVar.dfparametros.query('NOME=="Senha_Rede"')["VALOR"].iloc[0]
-        )
-        # self.driver.find_element("xpath",elemento).click()
-
-        elemento = "/html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[6]/button"  # botão logar /html/body/div[1]/div/div/div[2]/div/form/div/div[1]/div[6]/button
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        # self.driver.find_element("xpath",elemento).send_keys("")
-        elemt = self.driver.find_element("xpath", elemento)
-        self.driver.execute_script("arguments[0].click();", elemt)
-        BotLog.imprimirLog("Logando no GLPI")
-
-        elemento = (
-            "/html/body/div[2]/aside/div/div[2]/ul/li[2]/a/span"  # menu assitencia
-        )
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        # self.driver.find_element("xpath",elemento).send_keys("")
-        self.driver.find_element("xpath", elemento).click()
-
-        elemento = "/html/body/div[2]/aside/div/div[2]/ul/li[2]/div/div/div[1]/a[2]/span"  # menu chamados
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        # self.driver.find_element("xpath",elemento).send_keys("")
-        elemt = self.driver.find_element("xpath", elemento)
-        self.driver.execute_script("arguments[0].click();", elemt)
-        BotLog.imprimirLog("Abrindo a tela de chamados")
-
-        elemento = "/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[3]/div/span[1]/select"  # selecionar o maximo de chamados para exibir
-        esperarElemento(elemento)
-        # dado_html = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-        select_element = self.driver.find_element("xpath", elemento)
-        # Criar um objeto Select para o elemento select
-        select = Select(select_element)
-        # Selecionar para exibir 10000 chamados
-        select.select_by_value("10000")
-        BotLog.imprimirLog("Exibindo o maximo de chamados")
-
-        # forma antiga de mudar o select
-        # self.driver.find_element("xpath",elemento).send_keys("")
-        # self.driver.find_element("xpath",elemento).click()
-        # self.driver.find_element("xpath",elemento).send_keys("10000")
-        # self.driver.find_element("xpath",elemento).send_keys(Keys.ENTER)
-
-        elemento = "/html/body/div[2]/div/div/main/div/div[2]/form/div/div/div[2]/a[2]/i"  # clicar para limpar o filtro
-        esperarElemento(elemento)
-        self.driver.find_element("xpath", elemento).click()
-        BotLog.imprimirLog("Limpando os filtros")
-
-        # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[6]/td[2]
-        # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[7]/td[2]
-        # /html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[1]/td[2]/span
-        elemento = "/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[3]/div/p[1]"  # Verificando se possui chamados na tela
+        scraper = GLPIScraper(BotLog, headless=True)
         try:
-            total_chamados = self.driver.find_element("xpath", elemento).get_attribute(
-                "innerHTML"
+            scraper.start()
+            url = "http://chamado.pedreiraumvalemix.com.br/"
+            user = BotVar.dfparametros.query('NOME=="Usuario_Rede"')["VALOR"].iloc[0]
+            password = BotVar.dfparametros.query('NOME=="Senha_Rede"')["VALOR"].iloc[0]
+
+            scraper.login(url, user, password)
+            scraper.navigate_to_tickets()
+            vencidos_data = scraper.scrape_vencimentos()
+
+            dfchamadosvencidos = pd.DataFrame(
+                columns=[
+                    "Numero",
+                    "Status",
+                    "Vencido",
+                    "Data_Abertura",
+                    "Tempo para atendimento",
+                    "Tempo para solução",
+                    "Solicitante",
+                    "Entidade",
+                    "Categoria",
+                    "Titulo",
+                    "Descricao",
+                ]
             )
-            x = total_chamados.find("de")
-            y = total_chamados.find("linhas")
-            quant_chamados = int(total_chamados[x + 3 : y - 1])
-        except Exception as e:
-            BotLog.imprimirLog("Não possui chamados abertos ou em atendimentos")
-            BotLog.imprimirLog(f"Erro: {e}")
-            time.sleep(30)
-            self.driver.quit()
-            return
-        elemento = "/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[1]/td[5]/span/i"  #
-        esperarElemento(elemento)
-        coluna = 1
-        numero_coluna_ta = 0
-        numero_coluna_ts = 0
-        BotLog.imprimirLog("Procurando a coluna de TA e TS")
-        while True:
-            elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/thead/tr/th[{coluna}]"
-            try:
-                nome_coluna = self.driver.find_element("xpath", elemento).get_attribute(
-                    "innerHTML"
-                )
-            except Exception as e:
-                BotLog.imprimirLog("Não conseguiu encontrar as colunas de TA e TS")
-                BotLog.imprimirLog(f"Erro: {e}")
-                time.sleep(30)
-                self.driver.quit()
-                return
-            if "Tempo para atendimento + Progresso" in nome_coluna:
-                numero_coluna_ta = coluna
-            if "Tempo para solução + Progresso" in nome_coluna:
-                numero_coluna_ts = coluna
-            coluna += 1
-            if numero_coluna_ta > 0 and numero_coluna_ts > 0:
-                break
-        BotLog.imprimirLog(
-            "Coluna TA: "
-            + str(numero_coluna_ta)
-            + " Coluna TS: "
-            + str(numero_coluna_ts)
-        )
-        linha = 1
-        dfchamadosvencidos = pd.DataFrame(
-            columns=[
-                "Numero",
-                "Status",
-                "Vencido",
-                "Data_Abertura",
-                "Tempo para atendimento",
-                "Tempo para solução",
-                "Solicitante",
-                "Entidade",
-                "Categoria",
-                "Titulo",
-                "Descricao",
-            ]
-        )
-        BotLog.imprimirLog(
-            "Começando a verificação dos chamados, sao "
-            + str(quant_chamados)
-            + " Chamados"
-        )
-        while linha <= quant_chamados:
-            elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[{linha}]/td[2]/span"  #
-            try:
-                numero = self.driver.find_element("xpath", elemento).get_attribute(
-                    "innerHTML"
-                )
+
+            for item in vencidos_data:
+                numero = item["Numero"]
                 if str(numero) in self.chamadosvencendoavisado:
-                    BotLog.imprimirLog(
-                        "O chamado " + str(numero) + " ja foi avisado hoje, pulando ele"
-                    )
-                    BotLog.imprimirLog(
-                        "Imprimindo a lista de chamados vencendo ja avisado hoje"
-                    )
-                    BotLog.imprimirLog(str(self.chamadosvencendoavisado))
-                    linha += 1
                     continue
-                # if numero == 115 or numero == '115':
-                #     print("")
-            except Exception as e:
-                BotLog.imprimirLog("Não conseguiu pegar o TA do chamado " + str(numero))
-                BotLog.imprimirLog(f"Erro: {e}")
-                time.sleep(30)
-                linha += 1
-                continue
-            BotLog.imprimirLog("Verificando chamado " + str(numero))
-            progresso_sla_ta = 0
-            progresso_sla_ts = 0
-            elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[{linha}]/td[5]/span/i"  #
-            if not esperarElemento(elemento):
-                break
-            # status = self.driver.find_element("xpath",elemento).get_attribute('innerHTML')
-            status = self.driver.find_element("xpath", elemento).get_attribute(
-                "data-bs-original-title"
-            )
-            if status == "Pendente":
-                linha += 1
+
+                status = item["Status"]
+                progresso_sla_ta = item["TA_P"]
+                progresso_sla_ts = item["TS_P"]
+
                 BotLog.imprimirLog(
-                    "Chamado " + str(numero) + " Pendente, pulando a linha"
+                    f"Processando chamado {numero} vencendo (TA: {progresso_sla_ta}%, TS: {progresso_sla_ts}%)"
                 )
-                continue
-            if status == "Novo":
-                elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[{linha}]/td[{numero_coluna_ta}]/div/div"
+
+                dfchamados_linha = dfchamados[dfchamados["Numero"] == int(numero)]
+                if len(dfchamados_linha.index) == 1:
+                    numerodf = dfchamados_linha["Numero"].iloc[0]
+                    solicitante = dfchamados_linha["Solicitante"].iloc[0]
+                    entidade = dfchamados_linha["Entidade"].iloc[0]
+                    categoria = dfchamados_linha["Categoria"].iloc[0]
+                    categoria = categoria.replace("&#62;", ">")
+                    titulo = dfchamados_linha["Titulo"].iloc[0]
+                    descricao = dfchamados_linha["Descricao"].iloc[0]
+                    descricao_limpa = self.limparDescricao(descricao)
+                    descricao_limpa = (
+                        descricao_limpa.replace("&#60;/p&#62;", " ")
+                        .replace("&#60;p&#62;", " ")
+                        .replace("&#60;br&#62;", " ")
+                    )
+
+                    data_abertura = (
+                        dfchamados_linha["Data_Abertura"]
+                        .iloc[0]
+                        .strftime("%d-%m-%Y %H:%M:%S")
+                    )
+                    data_ta = (
+                        dfchamados_linha["Data_TA"]
+                        .iloc[0]
+                        .strftime("%d-%m-%Y %H:%M:%S")
+                    )
+                    data_ts = (
+                        dfchamados_linha["Data_TS"]
+                        .iloc[0]
+                        .strftime("%d-%m-%Y %H:%M:%S")
+                    )
+
+                    link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[
+                        0
+                    ]
+
+                    vencido_str = ""
+                    if progresso_sla_ta > 80 and progresso_sla_ts > 80:
+                        vencido_str = f"TA {progresso_sla_ta}% TS {progresso_sla_ts}%"
+                    elif progresso_sla_ta > 80:
+                        vencido_str = f"TA {progresso_sla_ta}%"
+                    else:
+                        vencido_str = f"TS {progresso_sla_ts}%"
+
+                    dic = {
+                        "Numero": numerodf,
+                        "Status": status,
+                        "Vencido": vencido_str,
+                        "Data_Abertura": data_abertura,
+                        "Tempo para atendimento": data_ta,
+                        "Tempo para solução": data_ts,
+                        "Solicitante": solicitante,
+                        "Entidade": entidade,
+                        "Categoria": categoria,
+                        "Titulo": titulo,
+                        "Descricao": descricao_limpa,
+                    }
+                    dfchamadosvencidos = pd.concat(
+                        [dfchamadosvencidos, pd.DataFrame([dic])], axis=0
+                    )
+
+            # Send messages for collected tickets
+            for x in range(len(dfchamadosvencidos.index)):
+                numerodf = dfchamadosvencidos["Numero"].iloc[x]
+                status_orig = dfchamadosvencidos["Status"].iloc[x]
+                solicitante = dfchamadosvencidos["Solicitante"].iloc[x]
+                entidade = dfchamadosvencidos["Entidade"].iloc[x]
+                categoria = dfchamadosvencidos["Categoria"].iloc[x]
+                titulo = dfchamadosvencidos["Titulo"].iloc[x]
+                descricao = dfchamadosvencidos["Descricao"].iloc[x]
+                data_abertura = dfchamadosvencidos["Data_Abertura"].iloc[x]
+                data_ta = dfchamadosvencidos["Tempo para atendimento"].iloc[x]
+                data_ts = dfchamadosvencidos["Tempo para solução"].iloc[x]
+                vencido = dfchamadosvencidos["Vencido"].iloc[x]
+                link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[0]
+
+                status_prefix = "📫 " if status_orig == "Novo" else "📬 "
+
+                mensagem = f""" 🔴 Chamado Vencendo!🔴
+                🎟 {numerodf}
+                {status_prefix}{status_orig}
+                📅 {data_abertura}
+                ⏱ {data_ta}
+                ⏰ {data_ts}
+                🧨 {vencido}
+                👤 {solicitante}
+                🏢 {entidade}
+                🏷 {categoria}
+                ✏️ {titulo}
+                🗒 {descricao}
+                🔗 {link}{numerodf}
+                """.replace("    ", "")
+
                 try:
-                    progresso_sla_ta = self.driver.find_element(
-                        "xpath", elemento
-                    ).get_attribute("aria-valuenow")
+                    BotVar.BotTelegram.send_message(int(self.id_telegram), mensagem)
+                    self.chamadosvencendoavisado.append(str(numerodf))
+                    db_rpa.insert_dict(
+                        "tb015_glpi",
+                        {"ID_CHAMADO": str(numerodf), "TIPO_AVISO": "VENCIDO"},
+                    )
                 except Exception as e:
-                    BotLog.imprimirLog(
-                        "Não conseguiu pegar o TA do chamado " + str(numero)
-                    )
-                    BotLog.imprimirLog(f"Erro: {e}")
+                    BotLog.imprimirLog(f"Erro no envio Telegram: {e}")
 
-            elemento = f"/html/body/div[2]/div/div/main/div/div[2]/div[2]/form/div/div[2]/table/tbody/tr[{linha}]/td[{numero_coluna_ts}]/div/div"
-            try:
-                progresso_sla_ts = self.driver.find_element(
-                    "xpath", elemento
-                ).get_attribute("aria-valuenow")
-            except Exception as e:
-                BotLog.imprimirLog("Não conseguiu pegar o TS do chamado " + str(numero))
-                BotLog.imprimirLog(f"Erro: {e}")
-            BotLog.imprimirLog(
-                "Chamado: "
-                + str(numero)
-                + " Status: "
-                + str(status)
-                + " TA: "
-                + str(progresso_sla_ta)
-                + " TS: "
-                + str(progresso_sla_ts)
-            )
-            if int(progresso_sla_ta) < 80 and int(progresso_sla_ts) < 80:
-                linha += 1
-                continue
+        except Exception as e:
+            BotLog.imprimirLog(f"Erro no scraping GLPI: {e}")
+        finally:
+            scraper.quit()
 
-            if int(progresso_sla_ta) > 80 and int(progresso_sla_ts) > 80:
-                BotLog.imprimirLog(
-                    "Chamado " + str(numero) + " com TA " + str(progresso_sla_ta) + "%"
-                )
-
-                dfchamados_linha = dfchamados[dfchamados["Numero"] == int(numero)]
-                if len(dfchamados_linha.index) == 1:
-                    numerodf = dfchamados_linha["Numero"].iloc[0]
-                    solicitante = dfchamados_linha["Solicitante"].iloc[0]
-                    entidade = dfchamados_linha["Entidade"].iloc[0]
-                    categoria = dfchamados_linha["Categoria"].iloc[0]
-                    categoria = categoria.replace("&#62;", ">")
-                    titulo = dfchamados_linha["Titulo"].iloc[0]
-                    descricao = dfchamados_linha["Descricao"].iloc[0]
-                    descricao_limpa = bot.limparDescricao(descricao)
-                    descricao_limpa = descricao_limpa.replace("&#60;/p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;br&#62;", " ")
-                    data_abertura = (
-                        dfchamados_linha["Data_Abertura"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ta = dfchamados_linha["TA"].iloc[0]
-                    ta = ta.replace("TA", "Tempo para atendimento")
-                    data_ta = (
-                        dfchamados_linha["Data_TA"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ts = dfchamados_linha["TS"].iloc[0]
-                    ts = ts.replace("TS", "Tempo para solução")
-                    data_ts = (
-                        dfchamados_linha["Data_TS"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
-                    link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[
-                        0
-                    ]
-                    dic = {
-                        "Numero": numerodf,
-                        "Status": status,
-                        "Vencido": "TA "
-                        + str(progresso_sla_ta)
-                        + "%"
-                        + " TS "
-                        + str(progresso_sla_ts)
-                        + "%",
-                        "Data_Abertura": data_abertura,
-                        "Tempo para atendimento": data_ta,
-                        "Tempo para solução": data_ts,
-                        "Solicitante": solicitante,
-                        "Entidade": entidade,
-                        "Categoria": categoria,
-                        "Titulo": titulo,
-                        "Descricao": descricao_limpa,
-                    }
-                    dfchamadosvencidos = pd.concat(
-                        [dfchamadosvencidos, pd.DataFrame([dic])], axis=0
-                    )
-                    linha += 1
-                    continue
-
-                else:
-                    BotLog.imprimirLog(
-                        "O filtro pelo numero do chamado retornou mais de uma linha"
-                    )
-
-            if int(progresso_sla_ta) > 80:
-                BotLog.imprimirLog(
-                    "Chamado " + str(numero) + " com TA " + str(progresso_sla_ta) + "%"
-                )
-
-                dfchamados_linha = dfchamados[dfchamados["Numero"] == int(numero)]
-                if len(dfchamados_linha.index) == 1:
-                    numerodf = dfchamados_linha["Numero"].iloc[0]
-                    solicitante = dfchamados_linha["Solicitante"].iloc[0]
-                    entidade = dfchamados_linha["Entidade"].iloc[0]
-                    categoria = dfchamados_linha["Categoria"].iloc[0]
-                    categoria = categoria.replace("&#62;", ">")
-                    titulo = dfchamados_linha["Titulo"].iloc[0]
-                    descricao = dfchamados_linha["Descricao"].iloc[0]
-                    descricao_limpa = bot.limparDescricao(descricao)
-                    descricao_limpa = descricao_limpa.replace("&#60;/p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;br&#62;", " ")
-                    data_abertura = (
-                        dfchamados_linha["Data_Abertura"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ta = dfchamados_linha["TA"].iloc[0]
-                    ta = ta.replace("TA", "Tempo para atendimento")
-                    data_ta = (
-                        dfchamados_linha["Data_TA"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ts = dfchamados_linha["TS"].iloc[0]
-                    ts = ts.replace("TS", "Tempo para solução")
-                    data_ts = (
-                        dfchamados_linha["Data_TS"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
-                    link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[
-                        0
-                    ]
-                    dic = {
-                        "Numero": numerodf,
-                        "Status": status,
-                        "Vencido": "TA " + str(progresso_sla_ta) + "%",
-                        "Data_Abertura": data_abertura,
-                        "Tempo para atendimento": data_ta,
-                        "Tempo para solução": data_ts,
-                        "Solicitante": solicitante,
-                        "Entidade": entidade,
-                        "Categoria": categoria,
-                        "Titulo": titulo,
-                        "Descricao": descricao_limpa,
-                    }
-                    dfchamadosvencidos = pd.concat(
-                        [dfchamadosvencidos, pd.DataFrame([dic])], axis=0
-                    )
-                else:
-                    BotLog.imprimirLog(
-                        "O filtro pelo numero do chamado retornou mais de uma linha"
-                    )
-
-            if int(progresso_sla_ts) > 80:
-                BotLog.imprimirLog(
-                    "Chamado " + str(numero) + " com TS " + str(progresso_sla_ts) + "%"
-                )
-
-                dfchamados_linha = dfchamados[dfchamados["Numero"] == int(numero)]
-                if len(dfchamados_linha.index) == 1:
-                    numerodf = dfchamados_linha["Numero"].iloc[0]
-                    solicitante = dfchamados_linha["Solicitante"].iloc[0]
-                    entidade = dfchamados_linha["Entidade"].iloc[0]
-                    categoria = dfchamados_linha["Categoria"].iloc[0]
-                    categoria = categoria.replace("&#62;", ">")
-                    titulo = dfchamados_linha["Titulo"].iloc[0]
-                    descricao = dfchamados_linha["Descricao"].iloc[0]
-                    descricao_limpa = bot.limparDescricao(descricao)
-                    descricao_limpa = descricao_limpa.replace("&#60;/p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;p&#62;", " ")
-                    descricao_limpa = descricao_limpa.replace("&#60;br&#62;", " ")
-                    data_abertura = (
-                        dfchamados_linha["Data_Abertura"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ta = dfchamados_linha["TA"].iloc[0]
-                    ta = ta.replace("TA", "Tempo para atendimento")
-                    data_ta = (
-                        dfchamados_linha["Data_TA"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    ts = dfchamados_linha["TS"].iloc[0]
-                    ts = ts.replace("TS", "Tempo para solução")
-                    data_ts = (
-                        dfchamados_linha["Data_TS"]
-                        .iloc[0]
-                        .strftime("%d-%m-%Y %H:%M:%S")
-                    )
-                    # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
-                    link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[
-                        0
-                    ]
-                    dic = {
-                        "Numero": numerodf,
-                        "Status": status,
-                        "Vencido": "TS " + str(progresso_sla_ts) + "%",
-                        "Data_Abertura": data_abertura,
-                        "Tempo para atendimento": data_ta,
-                        "Tempo para solução": data_ts,
-                        "Solicitante": solicitante,
-                        "Entidade": entidade,
-                        "Categoria": categoria,
-                        "Titulo": titulo,
-                        "Descricao": descricao_limpa,
-                    }
-                    dfchamadosvencidos = pd.concat(
-                        [dfchamadosvencidos, pd.DataFrame([dic])], axis=0
-                    )
-                else:
-                    BotLog.imprimirLog(
-                        "O filtro pelo numero do chamado retornou mais de uma linha"
-                    )
-
-            # print(dado_html)
-            # print("")
-            # self.driver.find_element("xpath",elemento).send_keys("")
-            # self.driver.find_element("xpath",elemento).click()
-            linha += 1
-
-        for x in range(len(dfchamadosvencidos.index)):
-            # ‼️⚠️👩‍🦰🆕📪📫📬📮📭✉️📩📨📥📤❗️🧨
-            numerodf = dfchamadosvencidos["Numero"].iloc[x]
-            status = dfchamadosvencidos["Status"].iloc[x]
-            solicitante = dfchamadosvencidos["Solicitante"].iloc[x]
-            entidade = dfchamadosvencidos["Entidade"].iloc[x]
-            categoria = dfchamadosvencidos["Categoria"].iloc[x]
-            titulo = dfchamadosvencidos["Titulo"].iloc[x]
-            descricao = dfchamadosvencidos["Descricao"].iloc[x]
-            data_abertura = dfchamadosvencidos["Data_Abertura"].iloc[x]
-
-            data_ta = dfchamadosvencidos["Tempo para atendimento"].iloc[
-                x
-            ]  # .strftime('%d-%m-%Y %H:%M:%S')
-            data_ts = dfchamadosvencidos["Tempo para solução"].iloc[
-                x
-            ]  # .strftime('%d-%m-%Y %H:%M:%S')
-            vencido = dfchamadosvencidos["Vencido"].iloc[x]
-            # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
-            link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[0]
-            if status == "Novo":
-                status = "📫 " + status
-            else:
-                status = "📬 " + status
-            mensagem = f""" 🔴 Chamado Vencendo!🔴
-            🎟 {numerodf}
-            {status}
-            📅 {data_abertura}
-            ⏱ {data_ta}
-            ⏰ {data_ts}
-            🧨 {vencido}
-            👤 {solicitante}
-            🏢 {entidade}
-            🏷 {categoria}
-            ✏️ {titulo}
-            🗒 {descricao}
-            🔗 {link}{numerodf}
-            """.replace("    ", "")
-            try:
-                BotVar.BotTelegram.send_message(int(self.id_telegram), mensagem)
-                BotLog.imprimirLog(
-                    "Adicionando o chamado "
-                    + str(numerodf)
-                    + " a lista de numeros de chamados que ja foram avisados hoje"
-                )
-
-                self.chamadosvencendoavisado.append(str(numerodf))
-                db_rpa.insert_dict(
-                    "tb015_glpi", {"ID_CHAMADO": str(numerodf), "TIPO_AVISO": "VENCIDO"}
-                )
-
-                BotLog.imprimirLog(
-                    "Imprimindo a lista de chamados vencendo ja avisado hoje"
-                )
-                BotLog.imprimirLog(str(self.chamadosvencendoavisado))
-            except Exception as e:
-                msg_erro = (
-                    "Erro no envio da mensagem pelo telegram de ta vencendo, mensagem de erro: "
-                    + str(e)
-                )
-                BotLog.imprimirLog(msg_erro)
-
-        self.driver.quit()
         self.conterro = 0
         BotLog.imprimirLog(
             "########################################################### FINALIZANDO MODULO CHAMADOS VENCENDO ###########################################################"
@@ -1167,7 +812,7 @@ class GLPI:
             ):  # Verifica se o chamado foi respondido se ser atribuido
                 # link = r'http://sistemas:8080/glpi/front/ticket.form.php?id='
                 link = BotVar.dfparametros.query('NOME=="link_glpi"')["VALOR"].iloc[0]
-                id_chamado = str(dfchamadosvencendo["id"].iloc[linha])
+                id_chamado = str(dfchamadosvencendo["Numero"].iloc[linha])
                 msg = f"""❗️ Atenção, Chamado {id_chamado} foi iniciado antendiemnto mas esta sem tecnico definido ❗️
                         🔗 {link}{id_chamado}
                         """.replace("    ", "")
@@ -1324,7 +969,7 @@ class GLPI:
         total_chamados_pendentes = len(dfchamadospendente.index)
         for x, data in enumerate(dfchamadospendente["Inicio_Espera"]):
             # data = dfchamadospendente['Inicio_Espera'].iloc[0]
-            tempo_segundos = bot.tempoComercial(data)
+            tempo_segundos = self.tempoComercial(data)
             dfchamadospendente["Tempo_Pendente_Segundos_Atual"].iloc[x] = tempo_segundos
             tempo_pendente_total_Segundos = (
                 tempo_segundos + dfchamadospendente["Tempo_Pendente_Segundos"].iloc[x]
@@ -1332,7 +977,7 @@ class GLPI:
             dfchamadospendente["Tempo_Pendente_Segundos_Total"].iloc[x] = (
                 tempo_pendente_total_Segundos
             )
-            horas_pendentes = bot.segundos_para_horas_minutos(
+            horas_pendentes = self.segundos_para_horas_minutos(
                 tempo_pendente_total_Segundos
             )
             dfchamadospendente["Horas_Pendente"].iloc[x] = horas_pendentes
@@ -1389,11 +1034,11 @@ class GLPI:
 
         try:
             save_df_as_image(dfchamadospendente, nome_print)
-            BotVar.BotTelegram.send_photo(int(bot.id_telegram), open(nome_print, "rb"))
+            BotVar.BotTelegram.send_photo(int(self.id_telegram), open(nome_print, "rb"))
         except Exception as e:
             BotLog.imprimirLog(f"Erro ao gerar ou enviar imagem da tabela: {e}")
             BotVar.BotTelegram.send_message(
-                int(bot.id_telegram), f"Erro ao gerar imagem: {e}"
+                int(self.id_telegram), f"Erro ao gerar imagem: {e}"
             )
 
         self.enviar_pendentes = False
@@ -1473,6 +1118,14 @@ try:
         BotLog.imprimirLog(
             "Data e hora atual: " + datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
         )
+except KeyboardInterrupt:
+    BotLog.imprimirLog("Encerrando conexões com o banco de dados...")
+    DatabaseManager.dispose_all()
+    BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
+except Exception as e:
+    BotLog.imprimirLog("Erro no Celim, mensagem de erro: " + str(e))
+    DatabaseManager.dispose_all()
+    BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 finally:
     BotLog.imprimirLog("Encerrando conexões com o banco de dados...")
     DatabaseManager.dispose_all()
