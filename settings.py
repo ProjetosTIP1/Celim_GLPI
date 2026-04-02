@@ -4,7 +4,11 @@ import sys
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Auto-detect base directory (Handles PyInstaller 'Frozen' state)
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
 if os.path.exists(ENV_PATH):
@@ -21,6 +25,10 @@ class Settings(BaseSettings):
     )
     CHAVE: str = os.getenv("CHAVE", "")
     EXTERNAL_LIBS_PATH: str = os.getenv("EXTERNAL_LIBS_PATH", "")
+
+    DB_HOST: str = os.getenv("DB_HOST", "")
+    DB_USER: str = os.getenv("DB_USER", "")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
 
     model_config = SettingsConfigDict(
         env_file=ENV_PATH,

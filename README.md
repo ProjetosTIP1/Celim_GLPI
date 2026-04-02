@@ -1,82 +1,65 @@
 # Celim_GLPI - Automação de Chamados (RPA)
 
-Este projeto é um sistema de Automação de Processos Robóticos (RPA) desenvolvido para monitorar e gerenciar chamados no **GLPI** (Gestão de Ativos de TI e Service Desk). O robô automatiza o acompanhamento de tickets, calcula prazos de SLA e envia notificações em tempo real via Telegram.
+Este projeto é um sistema de Automação de Processos Robóticos (RPA) desenvolvido para monitorar e gerenciar chamados no **GLPI**. O robô automatiza o acompanhamento de tickets, calcula prazos de SLA e envia notificações em tempo real via Telegram.
 
 ## 🚀 Funcionalidades Principais
 
-- **Monitoramento de Novos Chamados**: Identifica automaticamente tickets recém-abertos e notifica a equipe.
-- **Alertas de Vencimento**: Monitora chamados próximos ao vencimento (SLA de atendimento ou solução) e envia alertas preventivos.
-- **Cálculo de Tempo Comercial**: Possui lógica avançada para desconsiderar finais de semana, feriados e horários fora do expediente comercial no cálculo de prazos.
-- **Integração com Telegram**: Notificações ricas com detalhes do chamado (Solicitante, Entidade, Categoria, Título e Link direto).
-- **Persistência e Log**: Mantém o estado dos avisos em um banco de dados MariaDB/MySQL para evitar notificações redundantes.
-- **Modo de Operação**: Suporta modo de teste (silencioso) e produção.
+- **Monitoramento de Novos Chamados**: Identifica tickets recém-abertos e notifica a equipe.
+- **Alertas de Vencimento**: Monitora chamados próximos ao vencimento (SLA de atendimento ou solução) e envia alertas (80%+ de progresso).
+- **Cálculo de Tempo Comercial**: Lógica para desconsiderar finais de semana e feriados no cálculo de prazos.
+- **Integração com Telegram**: Notificações ricas com detalhes do chamado e links diretos.
+- **Resolução Estável**: Configurado para rodar sempre em 1920x1080 (mesmo em modo Headless) para garantir a integridade dos seletores WEB.
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Tecnologias e Requisitos
 
-- **Linguagem**: Python 3.x
-- **Automação Web**: Selenium (Headless Chrome)
-- **Manipulação de Dados**: Pandas
-- **Interface com Banco de Dados**: SQLAlchemy (com pool de conexões)
-- **Notificações**: PyTelegramBotAPI (telebot)
-- **Interface Desktop**: PyAutoGUI
-- **Banco de Dados**: MariaDB / MySQL
+- **Linguagem**: Python 3.11+
+- **Gerenciador de Pacotes**: [uv](https://github.com/astral-sh/uv) (Recomendado para performance e estabilidade)
+- **Automação Web**: Selenium (Chrome / Headless Support)
+- **Banco de Dados**: MariaDB / MySQL (SQLAlchemy)
 
-## 📂 Estrutura do Projeto
+## 📂 Estrutura de Implantação (Deploy)
+
+Para um funcionamento "limpo" em produção, o robô deve seguir a seguinte estrutura de diretórios no servidor/máquina de execução:
 
 ```text
-├── Celim_GLPI.py           # Script principal com a lógica do robô
-├── database_adapter.py     # Adaptador moderno para conexão com banco de dados
-├── settings.py             # Gerenciamento de configurações e variáveis de ambiente
-├── Config/                 # Arquivos de configuração legados (.txt)
-├── utils/                  # Utilitários diversos (ex: renderização de tabelas)
-├── requirements.txt        # Dependências do projeto
-└── README.md               # Documentação do projeto
+C:\Projetos\RPA\             <-- Diretório Raiz de RPAs
+├── 01_lib\                  <-- Biblioteca de funções compartilhadas (Legado)
+└── Celim_GLPI\              <-- Pasta deste Projeto
+    ├── Celim_GLPI.exe       <-- Executável gerado
+    ├── .env                 <-- Configurações de ambiente
+    ├── Config\              <-- Parâmetros (.txt)
+    ├── log\                 <-- Logs operacionais
+    └── chromedriver-win64\  <-- Driver do Chrome (Versão compatível)
 ```
 
-## ⚙️ Configuração
+## ⚙️ Configuração (.env)
 
-### 1. Variáveis de Ambiente (.env)
-Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+Crie um arquivo `.env` na pasta do executável:
 
 ```env
 CHAVE=sua_chave_de_criptografia
 HORA_TERMINO=17:00
-CAMINHO_EXCEL=C:\Caminho\Para\Excel.exe
-EXTERNAL_LIBS_PATH=./01_lib
+EXTERNAL_LIBS_PATH=../01_lib
 ```
 
-### 2. Arquivos de Configuração (Pasta Config/)
-O robô lê parâmetros de arquivos de texto simples para compatibilidade legada:
-- `sistema.txt`: Identificador do sistema.
-- `horatermino.txt`: Horário de encerramento diário.
-- `caminho_excel.txt`: Caminho para o executável do Excel (utilizado em módulos específicos).
+## 📦 Como Gerar o Executável (.exe)
 
-### 3. Banco de Dados
-O sistema utiliza duas bases de dados principais configuradas via banco:
-- **Base RPA**: Armazena parâmetros globais e o log de avisos (`tb015_glpi`).
-- **Base GLPI**: Fonte dos dados dos chamados.
+O projeto utiliza o `PyInstaller`. Recomenda-se gerar o executável em modo Console para facilitar o debug inicial em produção.
 
-## 🚀 Execução
+1.  **Instale as dependências**:
+    ```bash
+    uv sync
+    ```
+2.  **Gere o executável**:
+    ```bash
+    pyinstaller --onefile --icon=NONE Celim_GLPI.py
+    ```
 
-### Modo Desenvolvimento
-Para rodar o robô diretamente:
-```bash
-python Celim_GLPI.py
-```
-
-### Gerar Executável (Produção)
-O projeto utiliza o `PyInstaller` para compilação. Para gerar o executável:
-
-```bash
-pyinstaller --onefile --noconsole Celim_GLPI.py
-```
-*Nota: Certifique-se de que o `chromedriver.exe` e a pasta `Config/` estejam no mesmo diretório do executável gerado.*
-
-## 📝 Notas de Manutenção
-
-- **Log Operacional**: O robô gera logs detalhados na pasta `log/` e no banco de dados.
-- **SLA**: A lógica de tempo comercial deve ser revisada se houver mudanças nos calendários de feriados na tabela `glpi_holidays`.
-- **Headless**: Por padrão, o Selenium roda em modo `--headless`, o que significa que o navegador não será visível durante a operação.
+### Checklist para o Executável rodar "Clean":
+1.  **Versão do Chrome**: Verifique se o `chromedriver.exe` dentro de `chromedriver-win64/` é compatível com a versão do Chrome instalada no Windows.
+2.  **Pasta 01_lib**: Certifique-se de que a biblioteca compartilhada está na pasta **pai** (`../01_lib`).
+3.  **Ambiente**: O arquivo `.env` deve estar presente para carregar a `CHAVE` e o `EXTERNAL_LIBS_PATH`.
+4.  **SQL**: O RPA requer acesso às tabelas `tb015_glpi` e `glpi_tickets` nos bancos configurados.
 
 ---
-*Este é um projeto que combina lógica legada com melhorias modernas de arquitetura.*
+*Manutenção: O bot detecta automaticamente se está rodando como script ou executável para ajustar os caminhos base.*
