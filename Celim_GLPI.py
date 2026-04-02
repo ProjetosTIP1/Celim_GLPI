@@ -1,6 +1,8 @@
 import re
 import time
 import datetime
+import os
+import sys
 import pandas as pd
 import pyautogui
 
@@ -18,6 +20,28 @@ from libs.GerenciadorTarefas import GerenciadorTarefas
 from libs.FinalizarExecucao import FinalizarExecucao
 from libs.GerenciadorJanelas import GerenciadorJanelas
 from libs.ConectarBd import ConectarBd
+
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    if getattr(sys, "frozen", False):
+        # Running as bundled executable (PyInstaller)
+        base_path = os.path.dirname(sys.executable)
+
+        # Check for UNC path (\\server\share)
+        # if base_path.startswith('\\\\'):
+        #     error_msg = (
+        #         "ERRO CRITICO: Caminhos UNC (\\\\servidor\\pasta) nao sao suportados diretamente pelo Windows CMD.\n"
+        #         "Favor mapear esta pasta de rede como uma unidade de disco (Ex: Z:) e executar a partir dela."
+        #     )
+        #     print(error_msg)
+        #     import ctypes
+        #     ctypes.windll.user32.MessageBoxW(0, error_msg, "Erro de Caminho UNC", 0x10)
+        #     sys.exit(1)
+    else:
+        # Running as a script
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
 BotChave = GerarChave()
@@ -91,7 +115,7 @@ class GLPI:
         # self.id_telegram = '-940535548'
 
         with open(
-            r"Config\horatermino.txt",
+            get_resource_path(r"Config\horatermino.txt"),
             "r",
         ) as arquivo:
             self.horariotermino = arquivo.read()
@@ -104,14 +128,14 @@ class GLPI:
         )
 
         with open(
-            r"Config\caminho_excel.txt",
+            get_resource_path(r"Config\caminho_excel.txt"),
             "r",
         ) as arquivo:
             self.caminho_excel = arquivo.read()
         self.caminho_excel = str(self.caminho_excel)
 
         with open(
-            r"Config\sistema.txt",
+            get_resource_path(r"Config\sistema.txt"),
             "r",
         ) as arquivo:
             self.sistema = arquivo.read()
@@ -1120,15 +1144,18 @@ try:
         )
 except KeyboardInterrupt:
     BotLog.imprimirLog("Encerrando conexões com o banco de dados...")
-    DatabaseManager.dispose_all()
+    db_rpa.dispose()
+    db_glpi.dispose()
     BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 except Exception as e:
     BotLog.imprimirLog("Erro no Celim, mensagem de erro: " + str(e))
-    DatabaseManager.dispose_all()
+    db_rpa.dispose()
+    db_glpi.dispose()
     BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 finally:
     BotLog.imprimirLog("Encerrando conexões com o banco de dados...")
-    DatabaseManager.dispose_all()
+    db_rpa.dispose()
+    db_glpi.dispose()
     BotFinalizar.finalizarExecucao("Finalizando na ultima linha")
 # bot.InicioFim("FimExecucao")
 # BotFinalizar.finalizarExecucao("Finalizando execução com sucesso na ultima linha")

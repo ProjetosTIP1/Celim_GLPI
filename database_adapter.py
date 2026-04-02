@@ -80,6 +80,11 @@ class DatabaseManager:
             self._engine.dispose()
             self._engine = None
 
+    def dispose_all(self):
+        for db in self._instances.values():
+            db.dispose()
+        self._instances = {}
+
 
 def get_rpa_db():
     db = DatabaseManager(key="rpa")

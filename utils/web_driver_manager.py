@@ -1,7 +1,7 @@
 import os
+import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 
 class WebDriverFactory:
@@ -21,20 +21,33 @@ class WebDriverFactory:
             options.add_argument("--start-maximized")
         options.add_argument("--disable-notifications")
 
-        # Path to local chromedriver (specifically for version 146.0.7680.165)
-        base_dir = os.getcwd()
-        local_driver_path = os.path.join(
-            base_dir, "chromedriver-win64", "chromedriver-win64", "chromedriver.exe"
-        )
-
-        if os.path.exists(local_driver_path):
-            service = Service(local_driver_path)
+        # Base directory resolution
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
         else:
-            # Fallback to standard management if local driver is missing
-            try:
-                service = Service(ChromeDriverManager().install())
-            except Exception:
-                # If both fail, let Selenium Manager (native) try its best
-                return webdriver.Chrome(options=options)
+            base_dir = os.path.abspath(".")
 
+        # Candidate paths for the chromedriver executable
+        candidate_paths = [
+            os.path.join(base_dir, "chromedriver.exe"),
+            os.path.join(base_dir, "chromedriver-win64", "chromedriver-win64", "chromedriver.exe")
+        ]
+
+        # Use the first one that exists
+        local_driver_path = None
+        for path in candidate_paths:
+            if os.path.exists(path):
+                local_driver_path = path
+                break
+
+        if not local_driver_path:
+            error_msg = (
+                "ChromeDriver nao encontrado! Favor colocar o 'chromedriver.exe' na pasta raiz do bot.\n"
+                "Caminhos verificados:\n" + "\n".join(f"- {p}" for p in candidate_paths)
+            )
+            # Log to console if bot_log is not available here, otherwise it will be raised and caught in main
+            raise FileNotFoundError(error_msg)
+
+        # Create the service with the local driver
+        service = Service(local_driver_path)
         return webdriver.Chrome(service=service, options=options)

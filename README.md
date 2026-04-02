@@ -52,7 +52,7 @@ O projeto utiliza o `PyInstaller`. Recomenda-se gerar o executável em modo Cons
     ```
 2.  **Gere o executável**:
     ```bash
-    pyinstaller --onefile --icon=NONE Celim_GLPI.py
+    uv run pyinstaller --noconfirm Celim_GLPI_Production.spec
     ```
 
 ### Checklist para o Executável rodar "Clean":
